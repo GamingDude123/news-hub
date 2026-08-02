@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>EcoTrace • Scan the truth behind the barcode</title>
+<!-- lets iOS install this to the home screen as a full-screen app -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EcoTrace">
+<meta name="theme-color" content="#050d0a">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23050d0a'/%3E%3Ccircle cx='90' cy='90' r='46' fill='none' stroke='%233ddc84' stroke-width='13'/%3E%3Ccircle cx='90' cy='90' r='19' fill='%2334e2c4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --text:#eef4f0;--muted:#8fa39a;--dim:#5d6f68;
+  --good:#3ddc84;--ok:#ffd24c;--warn:#ff9f43;--bad:#ff5470;
+  --a1:#3ddc84;--a2:#34e2c4;
+  --bg:#050d0a;--card:#0d1a15;--card2:#122520;--line:#ffffff14;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#000;color:var(--text);
+  display:flex;justify-content:center;overflow:hidden;line-height:1.45;-webkit-font-smoothing:antialiased}
+
+.phone{position:relative;width:100%;max-width:480px;height:100vh;height:100dvh;overflow:hidden;background:var(--bg)}
+.phone::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(110% 60% at 10% -5%,#3ddc8422,transparent 60%),
+             radial-gradient(110% 60% at 95% 105%,#34e2c41c,transparent 60%)}
+
+/* ---------- screens ---------- */
+.screen{position:absolute;inset:0;z-index:1;display:none;flex-direction:column;overflow:hidden}
+.screen.on{display:flex}
+.scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;padding:0 18px 108px}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ---------- top bar ---------- */
+.bar{display:flex;align-items:center;gap:10px;padding:16px 18px 10px}
+.logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:-.6px;font-size:1.15rem}
+.logo .mark{width:26px;height:26px;border-radius:9px;background:linear-gradient(140deg,var(--a1),var(--a2));
+  display:grid;place-items:center;font-size:.9rem;color:#04140c}
+.grad{background:linear-gradient(100deg,var(--a1),var(--a2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.pts{margin-left:auto;font-size:.78rem;font-weight:800;background:#3ddc8418;border:1px solid #3ddc8440;
+  color:#9df3c4;padding:6px 12px;border-radius:999px}
+.iconbtn{width:36px;height:36px;border-radius:12px;border:1px solid var(--line);background:#ffffff10;
+  color:var(--text);font-size:1.15rem;cursor:pointer;display:grid;place-items:center;flex:0 0 auto}
+
+/* ---------- scanner ---------- */
+.scan-wrap{flex:1;display:flex;flex-direction:column;padding:0 18px 100px}
+.viewfinder{position:relative;flex:1;min-height:230px;margin-top:6px;border-radius:26px;overflow:hidden;
+  background:
+    repeating-linear-gradient(115deg,#0e1c17 0 26px,#0b1713 26px 52px);
+  border:1px solid var(--line);display:grid;place-items:center}
+.vf-shelf{position:absolute;inset:0;opacity:.5;
+  background:radial-gradient(60% 40% at 50% 30%,#1d3b31,transparent 70%)}
+.vf-box{position:relative;width:74%;aspect-ratio:1.35;border-radius:18px}
+.vf-box i{position:absolute;width:34px;height:34px;border:3px solid var(--a1);border-radius:6px}
+.vf-box i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0;border-radius:14px 0 0 0}
+.vf-box i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0;border-radius:0 14px 0 0}
+.vf-box i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0;border-radius:0 0 0 14px}
+.vf-box i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0;border-radius:0 0 14px 0}
+.laser{position:absolute;left:6%;right:6%;height:2px;border-radius:2px;
+  background:linear-gradient(90deg,transparent,var(--a1),transparent);box-shadow:0 0 18px 2px #3ddc8477;
+  top:8%;animation:sweep 2.1s cubic-bezier(.5,0,.5,1) infinite}
+@keyframes sweep{0%,100%{top:8%}50%{top:88%}}
+.bars{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:3px;opacity:.35}
+.bars span{width:3px;height:52px;background:#cfe;border-radius:1px}
+.bars span:nth-child(2n){height:38px;width:6px}
+.bars span:nth-child(3n){height:60px;width:2px}
+.vf-status{position:absolute;bottom:14px;left:14px;right:14px;text-align:center;font-size:.82rem;font-weight:700;color:#9df3c4;
+  text-shadow:0 1px 6px #000c;line-height:1.35}
+.vf-status.err{color:#ffc7d1}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;background:#000}
+.viewfinder.live #cam{display:block}
+.viewfinder.live .vf-shelf,.viewfinder.live .bars{display:none}
+.viewfinder.live .vf-box i{border-color:#fff;box-shadow:0 0 12px #0009}
+.hitflash{position:absolute;inset:0;background:#3ddc84;opacity:0;pointer-events:none}
+.hitflash.go{animation:flash .45s ease}
+@keyframes flash{0%{opacity:.55}100%{opacity:0}}
+
+.scan-btn{margin-top:16px;width:100%;border:0;border-radius:18px;padding:17px;cursor:pointer;
+  background:linear-gradient(100deg,var(--a1),var(--a2));color:#04140c;font-family:inherit;font-weight:900;font-size:1.05rem}
+.scan-btn:active{transform:scale(.985)}
+.scan-btn:disabled{opacity:.55}
+.alt-row{display:flex;gap:8px;margin-top:9px}
+.alt-row button{flex:1;border:1px solid var(--line);background:#ffffff12;color:var(--text);border-radius:15px;
+  padding:13px;font-family:inherit;font-weight:800;font-size:.88rem;cursor:pointer}
+.engine{margin-top:9px;font-size:.7rem;font-weight:700;color:var(--dim);text-align:center;letter-spacing:.3px}
+.manual{display:flex;gap:8px;margin-top:12px}
+.manual input{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 15px;
+  color:var(--text);font-family:inherit;font-size:.95rem;font-weight:600;letter-spacing:1px}
+.manual input::placeholder{color:var(--dim);letter-spacing:0}
+.manual button{border:1px solid var(--line);background:#ffffff12;color:var(--text);border-radius:14px;
+  padding:0 16px;font-family:inherit;font-weight:800;cursor:pointer}
+.hint{margin-top:16px;font-size:.74rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.demo-row{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding-bottom:4px;scrollbar-width:none}
+.demo-row::-webkit-scrollbar{display:none}
+.demo-chip{flex:0 0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 13px;
+  cursor:pointer;font-family:inherit;color:var(--text);text-align:left}
+.demo-chip .dc-e{font-size:1.1rem}
+.demo-chip .dc-n{font-size:.82rem;font-weight:800;margin-top:2px}
+.demo-chip .dc-b{font-size:.7rem;color:var(--muted);font-weight:600}
+
+/* ---------- score ---------- */
+.prod-head{display:flex;gap:14px;align-items:center;margin-top:6px}
+.prod-emoji{width:56px;height:56px;flex:0 0 auto;border-radius:16px;background:var(--card2);border:1px solid var(--line);
+  display:grid;place-items:center;font-size:1.7rem}
+.prod-name{font-size:1.25rem;font-weight:900;letter-spacing:-.5px;line-height:1.15}
+.prod-brand{font-size:.85rem;color:var(--muted);font-weight:600;margin-top:2px}
+.prod-code{font-size:.7rem;color:var(--dim);font-weight:700;letter-spacing:1.5px;margin-top:3px}
+
+.ring-wrap{display:flex;align-items:center;gap:18px;margin-top:20px;background:var(--card);border:1px solid var(--line);
+  border-radius:22px;padding:18px}
+.ring{position:relative;width:112px;height:112px;flex:0 0 auto}
+.ring svg{transform:rotate(-90deg)}
+.ring .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .num{font-size:2.2rem;font-weight:900;letter-spacing:-2px;line-height:1}
+.ring .of{font-size:.62rem;font-weight:800;color:var(--dim);letter-spacing:1.5px;margin-top:2px}
+.verdict{font-size:1.1rem;font-weight:900;letter-spacing:-.3px}
+.verdict-sub{font-size:.88rem;color:var(--muted);font-weight:600;margin-top:6px}
+
+.bars-list{margin-top:14px;display:flex;flex-direction:column;gap:13px}
+.mbar-top{display:flex;font-size:.82rem;font-weight:800}
+.mbar-top span:last-child{margin-left:auto;color:var(--muted)}
+.track{height:7px;border-radius:7px;background:#ffffff12;margin-top:6px;overflow:hidden}
+.track i{display:block;height:100%;width:0;border-radius:7px;transition:width .9s cubic-bezier(.3,1,.4,1)}
+.mbar-note{font-size:.76rem;color:var(--dim);font-weight:600;margin-top:4px}
+
+/* ---------- alert ---------- */
+.alert{margin-top:18px;border-radius:20px;padding:16px;border:1px solid;display:flex;gap:12px}
+.alert.sev-high{background:#2a0d16;border-color:#ff547055}
+.alert.sev-med{background:#2a1d0b;border-color:#ff9f4355}
+.alert.sev-low{background:#0f2418;border-color:#3ddc8444}
+.alert .ae{font-size:1.3rem;line-height:1}
+.alert h4{font-size:.95rem;font-weight:900;letter-spacing:-.2px}
+.alert p{font-size:.85rem;color:#d7e5de;font-weight:600;margin-top:5px}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:6px;margin-top:20px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:5px}
+.tab{flex:1;border:0;background:transparent;color:var(--muted);font-family:inherit;font-weight:800;font-size:.85rem;
+  padding:10px 4px;border-radius:12px;cursor:pointer}
+.tab.on{background:#ffffff14;color:var(--text)}
+.pane{display:none;margin-top:16px}
+.pane.on{display:block;animation:fade .3s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- x-ray timeline ---------- */
+.stage{position:relative;padding-left:42px;padding-bottom:18px}
+.stage::before{content:'';position:absolute;left:15px;top:34px;bottom:-4px;width:2px;background:linear-gradient(#ffffff26,#ffffff08)}
+.stage:last-child::before{display:none}
+.stage .dot{position:absolute;left:0;top:2px;width:32px;height:32px;border-radius:11px;background:var(--card2);
+  border:1px solid var(--line);display:grid;place-items:center;font-size:.95rem}
+.stage h5{font-size:.98rem;font-weight:900;letter-spacing:-.2px}
+.stage .loc{font-size:.83rem;color:var(--muted);font-weight:600;margin-top:2px}
+.stage .who{font-size:.83rem;color:#c3d6cd;font-weight:600;margin-top:7px}
+.stage .who b{color:#fff;font-weight:800}
+.tagrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.tag{font-size:.72rem;font-weight:800;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:#ffffff0d;color:#cfe0d8}
+.tag.co2{background:#ffffff0d;color:#9df3c4;border-color:#3ddc8433}
+.tag.flag{background:#ff547018;color:#ffb3c0;border-color:#ff547044}
+.tag.warn{background:#ff9f4318;color:#ffd6ac;border-color:#ff9f4344}
+
+/* ---------- labor cards ---------- */
+.lcard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px;margin-bottom:11px}
+.lcard-top{display:flex;align-items:center;gap:9px}
+.pill{font-size:.68rem;font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:4px 9px;border-radius:7px}
+.pill.high{background:#ff547022;color:#ff8fa3}
+.pill.med{background:#ff9f4322;color:#ffc182}
+.pill.low{background:#3ddc8422;color:#8ce8b3}
+.lcard h5{font-size:.95rem;font-weight:900;margin-top:9px}
+.lcard p{font-size:.85rem;color:#c3d6cd;font-weight:600;margin-top:5px}
+.src{font-size:.72rem;color:var(--dim);font-weight:700;margin-top:9px}
+
+/* ---------- alternatives ---------- */
+.alt{display:flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--line);
+  border-radius:18px;padding:14px;margin-bottom:10px;width:100%;text-align:left;font-family:inherit;color:var(--text);cursor:pointer}
+.alt .ae{width:44px;height:44px;flex:0 0 auto;border-radius:13px;background:var(--card2);display:grid;place-items:center;font-size:1.35rem}
+.alt .an{font-size:.95rem;font-weight:900;letter-spacing:-.2px}
+.alt .ab{font-size:.78rem;color:var(--muted);font-weight:600}
+.alt .as{margin-left:auto;text-align:right;flex:0 0 auto}
+.alt .as b{font-size:1.35rem;font-weight:900;letter-spacing:-1px}
+.alt .as span{display:block;font-size:.7rem;font-weight:800;color:var(--good)}
+.swap{width:100%;margin-top:6px;border:0;border-radius:18px;padding:16px;cursor:pointer;font-family:inherit;
+  background:linear-gradient(100deg,var(--a1),var(--a2));color:#04140c;font-weight:900;font-size:.98rem}
+
+/* ---------- history ---------- */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px}
+.stat b{display:block;font-size:1.75rem;font-weight:900;letter-spacing:-1.5px;line-height:1}
+.stat span{font-size:.75rem;font-weight:800;color:var(--muted);letter-spacing:.4px}
+.sec-title{font-size:.74rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin:24px 0 10px}
+.hrow{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;padding:12px 14px;margin-bottom:9px;width:100%;text-align:left;font-family:inherit;color:var(--text);cursor:pointer}
+.hrow .he{font-size:1.3rem}
+.hrow .hn{font-size:.9rem;font-weight:800}
+.hrow .hb{font-size:.75rem;color:var(--muted);font-weight:600}
+.hrow .hs{margin-left:auto;font-size:1.15rem;font-weight:900;letter-spacing:-.8px}
+.empty{text-align:center;color:var(--dim);font-weight:700;font-size:.9rem;padding:50px 20px}
+
+/* ---------- bottom nav ---------- */
+.nav{position:absolute;bottom:0;left:0;right:0;z-index:20;display:flex;padding:8px 14px calc(14px + env(safe-area-inset-bottom));
+  gap:6px;background:linear-gradient(#0000,#050d0aee 38%);backdrop-filter:blur(12px)}
+.nav button{flex:1;border:0;background:transparent;color:var(--dim);font-family:inherit;font-weight:800;font-size:.7rem;
+  padding:8px 0 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;letter-spacing:.3px}
+.nav button .ni{font-size:1.2rem;line-height:1}
+.nav button.on{color:var(--a1)}
+
+/* ---------- compare ---------- */
+.slots{display:flex;align-items:stretch;gap:8px;margin-top:6px}
+.slot{flex:1;min-width:0;background:var(--card);border:1px dashed #ffffff26;border-radius:20px;padding:14px 12px;
+  cursor:pointer;font-family:inherit;color:var(--text);text-align:center;min-height:132px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.slot.filled{border-style:solid;border-color:var(--line)}
+.slot .se{font-size:1.7rem}
+.slot .sn{font-size:.86rem;font-weight:900;letter-spacing:-.2px;line-height:1.2}
+.slot .sb{font-size:.72rem;color:var(--muted);font-weight:700}
+.slot .ss{font-size:1.9rem;font-weight:900;letter-spacing:-1.5px;line-height:1;margin-top:2px}
+.slot .ph{font-size:1.6rem;color:var(--dim)}
+.slot .pht{font-size:.8rem;font-weight:800;color:var(--muted)}
+.vs{align-self:center;font-size:.72rem;font-weight:900;letter-spacing:1px;color:var(--dim);
+  background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:7px 9px}
+.winner{border-color:#3ddc8455 !important;background:#0f2418}
+.cbanner{margin-top:14px;border-radius:20px;padding:15px;background:var(--card);border:1px solid var(--line)}
+.cbanner h4{font-size:1rem;font-weight:900;letter-spacing:-.3px}
+.cbanner p{font-size:.85rem;color:#c3d6cd;font-weight:600;margin-top:5px}
+.cbanner.mismatch{background:#2a1d0b;border-color:#ff9f4355}
+.crow{margin-top:15px}
+.crow .cl{display:flex;align-items:baseline;font-size:.82rem;font-weight:800}
+.crow .cl .mid{flex:1;text-align:center;color:var(--muted);font-size:.75rem;letter-spacing:.5px;text-transform:uppercase}
+.cbars{display:flex;align-items:center;gap:6px;margin-top:6px}
+.cbars .half{flex:1;height:8px;border-radius:8px;background:#ffffff12;overflow:hidden;display:flex}
+.cbars .half.l{justify-content:flex-end}
+.cbars .half i{display:block;height:100%;width:0;transition:width .8s cubic-bezier(.3,1,.4,1)}
+.cbars .half.l i{border-radius:8px 0 0 8px}
+.cbars .half.r i{border-radius:0 8px 8px 0}
+.ctable{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.ctr{display:flex;align-items:center;padding:13px 14px;border-bottom:1px solid var(--line);font-size:.85rem;font-weight:800}
+.ctr:last-child{border-bottom:0}
+.ctr .k{flex:1;text-align:center;color:var(--muted);font-size:.72rem;font-weight:800;letter-spacing:.6px;text-transform:uppercase}
+.ctr .a,.ctr .b{width:33%;flex:0 0 auto}
+.ctr .b{text-align:right}
+.ctr .win{color:var(--good)}
+.gap{margin-top:16px;background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:16px}
+.gap .gt{font-size:.72rem;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim)}
+.gap h4{font-size:1.05rem;font-weight:900;margin-top:7px;letter-spacing:-.3px}
+.gap .gl{font-size:.84rem;font-weight:700;margin-top:11px;color:#c3d6cd}
+.gap .gl b{display:block;font-size:.72rem;color:var(--dim);letter-spacing:.6px;text-transform:uppercase;margin-bottom:2px}
+.crow2{display:flex;gap:8px;margin-top:16px}
+.crow2 button{flex:1;border-radius:16px;padding:14px;font-family:inherit;font-weight:900;font-size:.9rem;cursor:pointer;
+  border:1px solid var(--line);background:#ffffff12;color:var(--text)}
+.crow2 button.primary{border:0;background:linear-gradient(100deg,var(--a1),var(--a2));color:#04140c}
+
+/* ---------- picker sheet ---------- */
+.sheet{position:absolute;inset:0;z-index:50;display:none}
+.sheet.on{display:block}
+.sheet .scrim{position:absolute;inset:0;background:#000a;backdrop-filter:blur(3px)}
+.sheet .panel{position:absolute;left:0;right:0;bottom:0;max-height:78%;background:#0b1712;border:1px solid var(--line);
+  border-radius:26px 26px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));overflow-y:auto;
+  animation:up .28s cubic-bezier(.3,1,.4,1)}
+@keyframes up{from{transform:translateY(24px);opacity:.4}to{transform:none;opacity:1}}
+.sheet h3{font-size:1.05rem;font-weight:900;letter-spacing:-.3px}
+.sheet .sub{font-size:.8rem;color:var(--muted);font-weight:600;margin-top:3px;margin-bottom:14px}
+.sheet .cam-opt{width:100%;border:0;border-radius:16px;padding:14px;margin-bottom:14px;cursor:pointer;font-family:inherit;
+  background:linear-gradient(100deg,var(--a1),var(--a2));color:#04140c;font-weight:900;font-size:.92rem}
+
+/* ---------- no record ---------- */
+.norec{text-align:center;padding:34px 6px}
+.norec .ne{font-size:3rem}
+.norec h3{font-size:1.3rem;font-weight:900;letter-spacing:-.5px;margin-top:12px}
+.norec .code{font-size:.8rem;color:var(--muted);font-weight:800;letter-spacing:2px;margin-top:6px}
+.norec p{font-size:.9rem;color:#c3d6cd;font-weight:600;margin-top:14px;text-align:left}
+
+/* ---------- disclaimer ---------- */
+.disc{margin-top:26px;font-size:.72rem;color:var(--dim);font-weight:600;line-height:1.55;
+  border-top:1px solid var(--line);padding-top:14px}
+.disc b{color:var(--muted)}
+
+/* toast */
+.toast{position:absolute;left:18px;right:18px;bottom:86px;z-index:40;background:#0f2418;border:1px solid #3ddc8455;
+  color:#c7f7da;font-size:.88rem;font-weight:800;padding:14px 16px;border-radius:16px;text-align:center;
+  opacity:0;transform:translateY(12px);transition:.3s;pointer-events:none}
+.toast.on{opacity:1;transform:none}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- ============ SCAN ============ -->
+  <section class="screen on" id="s-scan">
+    <div class="bar">
+      <div class="logo"><span class="mark">◉</span><span>Eco<span class="grad">Trace</span></span></div>
+      <div class="pts" id="ptsScan">0 pts</div>
+    </div>
+    <div class="scan-wrap">
+      <div class="viewfinder" id="viewfinder">
+        <video id="cam" playsinline muted></video>
+        <div class="vf-shelf"></div>
+        <div class="bars" id="vfBars"></div>
+        <div class="vf-box"><i></i><i></i><i></i><i></i></div>
+        <div class="laser" id="laser"></div>
+        <div class="hitflash" id="hitflash"></div>
+        <div class="vf-status" id="vfStatus">Camera is off</div>
+      </div>
+
+      <button class="scan-btn" id="scanBtn">Open camera</button>
+
+      <div class="alt-row">
+        <button id="photoBtn">🖼 Scan from a photo</button>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+      <canvas id="frame" style="display:none"></canvas>
+      <div class="engine" id="engine"></div>
+
+      <div class="manual">
+        <input id="codeInput" inputmode="numeric" placeholder="or type a barcode (e.g. 4001724819400)">
+        <button id="codeGo">Go</button>
+      </div>
+
+      <div class="hint">Try a demo product</div>
+      <div class="demo-row" id="demoRow"></div>
+    </div>
+  </section>
+
+  <!-- ============ RESULT ============ -->
+  <section class="screen" id="s-result">
+    <div class="bar">
+      <button class="iconbtn" id="backBtn">←</button>
+      <div class="logo" style="font-size:1rem">Impact report</div>
+      <button class="iconbtn" id="toCompare" title="Compare this product" style="margin-left:auto">⇄</button>
+      <div class="pts" id="ptsResult">0 pts</div>
+    </div>
+    <div class="scroll" id="resultScroll"></div>
+  </section>
+
+  <!-- ============ HISTORY ============ -->
+  <section class="screen" id="s-history">
+    <div class="bar">
+      <div class="logo"><span class="mark">◉</span><span>Your impact</span></div>
+      <button class="iconbtn" id="clearBtn" title="Clear history">⌫</button>
+    </div>
+    <div class="scroll" id="historyScroll"></div>
+  </section>
+
+  <!-- ============ COMPARE ============ -->
+  <section class="screen" id="s-compare">
+    <div class="bar">
+      <div class="logo"><span class="mark">⇄</span><span>Head to head</span></div>
+      <button class="iconbtn" id="cmpReset" title="Clear both slots">⌫</button>
+    </div>
+    <div class="scroll" id="compareScroll"></div>
+  </section>
+
+  <nav class="nav">
+    <button data-go="s-scan" class="on"><span class="ni">◎</span>Scan</button>
+    <button data-go="s-compare"><span class="ni">⇄</span>Compare</button>
+    <button data-go="s-history"><span class="ni">◈</span>Impact</button>
+  </nav>
+
+  <!-- picker sheet -->
+  <div class="sheet" id="sheet">
+    <div class="scrim" id="sheetScrim"></div>
+    <div class="panel">
+      <h3 id="sheetTitle">Pick a product</h3>
+      <div class="sub" id="sheetSub">Scan a real barcode, or choose from the demo database.</div>
+      <button class="cam-opt" id="sheetCam">◎ Scan with camera</button>
+      <div id="sheetList"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ============================================================
+   EcoTrace — prototype
+   All supply-chain records below are INVENTED for this demo and
+   the brands are fictional. Nothing here describes a real company.
+   A production build would query real datasets (e.g. open LCA
+   inventories + audit/enforcement registries) behind an API.
+   ============================================================ */
+
+const DB = {
+  "4001724819400": {
+    emoji:"👕", name:"Everyday Cotton Tee", brand:"Northmill Basics", price:"$12.99",
+    cat:"T-shirt", co2:8.4, co2u:"kg CO₂e per shirt", tiers:[2,5],
+    score:31,
+    metrics:[
+      {k:"Carbon",   v:26, note:"8.4 kg CO₂e · 71% from spinning + dyeing"},
+      {k:"Labor",    v:18, note:"2 sites with unresolved wage findings"},
+      {k:"Water",    v:22, note:"2,700 L — irrigated cotton, high-stress basin"},
+      {k:"Circularity", v:58, note:"Single-material, technically recyclable"}
+    ],
+    alert:{sev:"high", emoji:"⚠️", title:"Forced-labor risk in the cotton stage",
+      text:"Raw cotton is sourced through a trader with no verified farm-level origin. Two downstream mills failed their last independent wage audit."},
+    chain:[
+      {icon:"🌱", stage:"Raw material · Cotton", loc:"Region undisclosed → traded via Izmir, Türkiye",
+       who:"Aggregated by <b>Kestrel Fibre Trading</b> across 40+ unnamed farms",
+       tags:[{t:"1.9 kg CO₂e",c:"co2"},{t:"Origin unverified",c:"flag"},{t:"2,400 L water",c:"warn"}]},
+      {icon:"🧵", stage:"Spinning & dyeing", loc:"Faisalabad, Pakistan",
+       who:"<b>Ravi Textile Mill No. 4</b> — 1,900 workers, 62% women",
+       tags:[{t:"4.1 kg CO₂e",c:"co2"},{t:"Coal-fired steam",c:"warn"},{t:"Wage audit failed 2025",c:"flag"}]},
+      {icon:"✂️", stage:"Cut & sew", loc:"Dhaka, Bangladesh",
+       who:"<b>Meghna Apparel Ltd.</b> — subcontracted, not on brand's public list",
+       tags:[{t:"1.1 kg CO₂e",c:"co2"},{t:"Undisclosed subcontractor",c:"flag"},{t:"84 hr/wk peak",c:"warn"}]},
+      {icon:"🚢", stage:"Freight", loc:"Chittagong → Rotterdam → inland",
+       who:"Ocean container + 620 km road haul",
+       tags:[{t:"0.9 kg CO₂e",c:"co2"},{t:"38 days",c:""}]},
+      {icon:"🏬", stage:"Retail & end of life", loc:"EU + North America",
+       who:"Average 7 wears before disposal in this category",
+       tags:[{t:"0.4 kg CO₂e",c:"co2"},{t:"12% recycled",c:"warn"}]}
+    ],
+    labor:[
+      {sev:"high", where:"Faisalabad, Pakistan", title:"Wages below the local living-wage floor",
+       text:"Independent audit found take-home pay averaging 61% of the regional living-wage benchmark, with overtime not paid at the statutory premium.",
+       src:"Demo record · would map to audit-registry data"},
+      {sev:"high", where:"Cotton origin unknown", title:"Untraceable to farm level",
+       text:"The trader will not disclose growing regions, so forced-labor exposure cannot be ruled out at the raw-material stage.",
+       src:"Demo record · would map to customs + trader disclosures"},
+      {sev:"med", where:"Dhaka, Bangladesh", title:"Unauthorised subcontracting",
+       text:"Final assembly happens at a facility absent from the brand's published supplier list — meaning no third party is monitoring it.",
+       src:"Demo record · would map to supplier-list cross-checks"}
+    ],
+    alts:["8801043031127","0705632441947"]
+  },
+
+  "8801043031127": {
+    emoji:"👕", name:"Organic Crew Tee", brand:"Verdant Supply Co.", price:"$24.00",
+    cat:"T-shirt", co2:2.6, co2u:"kg CO₂e per shirt", tiers:[5,5],
+    score:78,
+    metrics:[
+      {k:"Carbon", v:74, note:"2.6 kg CO₂e · renewable-powered mill"},
+      {k:"Labor",  v:86, note:"All 4 tiers named; living wage verified"},
+      {k:"Water",  v:69, note:"780 L — rain-fed organic cotton"},
+      {k:"Circularity", v:82, note:"Take-back program, mono-material"}
+    ],
+    alert:{sev:"low", emoji:"✅", title:"Full chain disclosed to tier 4",
+      text:"Every facility from farm to finishing is named publicly, and wage data was verified on site within the last 12 months."},
+    chain:[
+      {icon:"🌱", stage:"Raw material · Cotton", loc:"Gujarat, India",
+       who:"<b>Sahyadri Organic Growers Co-op</b> — 310 named smallholders",
+       tags:[{t:"0.6 kg CO₂e",c:"co2"},{t:"Rain-fed",c:""},{t:"Farm-level traced",c:""}]},
+      {icon:"🧵", stage:"Spinning & dyeing", loc:"Tiruppur, India",
+       who:"<b>Arasu Mills</b> — 92% solar + biomass steam",
+       tags:[{t:"0.8 kg CO₂e",c:"co2"},{t:"Closed-loop water",c:""}]},
+      {icon:"✂️", stage:"Cut & sew", loc:"Tiruppur, India",
+       who:"<b>Arasu Garment Unit 2</b> — same-owner, living wage verified",
+       tags:[{t:"0.5 kg CO₂e",c:"co2"},{t:"48 hr/wk cap",c:""}]},
+      {icon:"🚢", stage:"Freight", loc:"Chennai → Hamburg",
+       who:"Ocean container, consolidated shipments",
+       tags:[{t:"0.6 kg CO₂e",c:"co2"},{t:"31 days",c:""}]},
+      {icon:"♻️", stage:"End of life", loc:"Brand take-back",
+       who:"Returned garments shredded into insulation feedstock",
+       tags:[{t:"0.1 kg CO₂e",c:"co2"},{t:"Take-back",c:""}]}
+    ],
+    labor:[
+      {sev:"low", where:"Tiruppur, India", title:"Living wage verified on site",
+       text:"Payroll sampled across 3 shifts; median pay 108% of the regional living-wage benchmark.",
+       src:"Demo record · would map to audit-registry data"},
+      {sev:"low", where:"Gujarat, India", title:"Farm-level traceability",
+       text:"Each cotton bale carries a co-op lot ID traceable to the named grower group.",
+       src:"Demo record · would map to lot-level chain of custody"}
+    ],
+    alts:[]
+  },
+
+  "0705632441947": {
+    emoji:"👕", name:"Recycled Blend Tee", brand:"Loopwear", price:"$19.50",
+    cat:"T-shirt", co2:3.1, co2u:"kg CO₂e per shirt", tiers:[4,5],
+    score:66,
+    metrics:[
+      {k:"Carbon", v:71, note:"3.1 kg CO₂e · 60% post-consumer feedstock"},
+      {k:"Labor",  v:63, note:"Tiers 1–2 disclosed, tier 3 partial"},
+      {k:"Water",  v:88, note:"310 L — recycled fibre needs no farming"},
+      {k:"Circularity", v:41, note:"Poly-cotton blend is hard to re-recycle"}
+    ],
+    alert:{sev:"med", emoji:"⚠️", title:"Fibre blend blocks future recycling",
+      text:"The 60/40 cotton-polyester blend cannot currently be separated at scale, so this garment likely ends its life in landfill or incineration."},
+    chain:[
+      {icon:"♻️", stage:"Raw material · Recycled fibre", loc:"Prato, Italy",
+       who:"<b>Consorzio Riciclo Prato</b> — post-consumer textile sorting",
+       tags:[{t:"0.7 kg CO₂e",c:"co2"},{t:"60% post-consumer",c:""}]},
+      {icon:"🧵", stage:"Spinning", loc:"Porto, Portugal",
+       who:"<b>Fiacão do Douro</b> — grid mix 61% renewable",
+       tags:[{t:"1.2 kg CO₂e",c:"co2"}]},
+      {icon:"✂️", stage:"Cut & sew", loc:"Vila Nova de Gaia, Portugal",
+       who:"<b>Costura Atlântica</b> — EU labour law, works council",
+       tags:[{t:"0.7 kg CO₂e",c:"co2"},{t:"40 hr/wk",c:""}]},
+      {icon:"🚚", stage:"Freight", loc:"Road across EU",
+       who:"Short-haul trucking, no ocean leg",
+       tags:[{t:"0.3 kg CO₂e",c:"co2"},{t:"4 days",c:""}]},
+      {icon:"🗑️", stage:"End of life", loc:"Mixed waste",
+       who:"Blend not separable at commercial scale today",
+       tags:[{t:"0.2 kg CO₂e",c:"co2"},{t:"Not re-recyclable",c:"warn"}]}
+    ],
+    labor:[
+      {sev:"low", where:"Portugal", title:"EU labour protections apply",
+       text:"Both facilities sit inside EU jurisdiction with an active works council and statutory minimum above the poverty line.",
+       src:"Demo record · would map to jurisdiction + audit data"},
+      {sev:"med", where:"Sorting tier", title:"Tier 3 collection partly undisclosed",
+       text:"Roughly a third of the post-consumer feedstock arrives via brokers who do not disclose collection origin.",
+       src:"Demo record · would map to trader disclosures"}
+    ],
+    alts:["8801043031127"]
+  },
+
+  "0049000050103": {
+    emoji:"☕", name:"House Blend Coffee 500g", brand:"Harborline Roasters", price:"$8.75",
+    cat:"Coffee", co2:6.1, co2u:"kg CO₂e per kg", tiers:[3,5],
+    score:44,
+    metrics:[
+      {k:"Carbon", v:39, note:"6.1 kg CO₂e/kg · deforestation-linked land use"},
+      {k:"Labor",  v:34, note:"Seasonal pickers paid per-weight, no floor"},
+      {k:"Water",  v:41, note:"Wet processing, untreated effluent at 1 mill"},
+      {k:"Circularity", v:62, note:"Recyclable bag, non-recyclable valve"}
+    ],
+    alert:{sev:"med", emoji:"⚠️", title:"Piece-rate pay below minimum in peak season",
+      text:"Harvest labour is paid per kilo picked. In two of three sampled weeks, effective hourly pay fell under the national agricultural minimum."},
+    chain:[
+      {icon:"🌱", stage:"Growing", loc:"Huila, Colombia + blended lots, Vietnam",
+       who:"Mixed smallholder lots via <b>Andes Coffee Exporters</b>",
+       tags:[{t:"3.4 kg CO₂e",c:"co2"},{t:"Land-use change",c:"flag"}]},
+      {icon:"🧺", stage:"Harvest", loc:"Huila, Colombia",
+       who:"Seasonal migrant crews, <b>paid per kilo picked</b>",
+       tags:[{t:"Piece-rate pay",c:"flag"},{t:"No wage floor",c:"warn"}]},
+      {icon:"💧", stage:"Wet mill", loc:"Pitalito, Colombia",
+       who:"<b>Beneficio San Agustín</b> — effluent partly untreated",
+       tags:[{t:"0.9 kg CO₂e",c:"co2"},{t:"Water discharge",c:"warn"}]},
+      {icon:"🔥", stage:"Roasting", loc:"Antwerp, Belgium",
+       who:"<b>Harborline Roastery</b> — gas-fired drum roasters",
+       tags:[{t:"1.2 kg CO₂e",c:"co2"}]},
+      {icon:"🚢", stage:"Freight & pack", loc:"Cartagena → Antwerp → EU retail",
+       who:"Ocean bulk + multi-layer foil packaging",
+       tags:[{t:"0.6 kg CO₂e",c:"co2"},{t:"Mixed-material bag",c:"warn"}]}
+    ],
+    labor:[
+      {sev:"med", where:"Huila, Colombia", title:"Piece-rate pay with no hourly floor",
+       text:"Pickers absorb the risk of a bad harvest: when yields drop, hourly earnings drop with them and no minimum applies.",
+       src:"Demo record · would map to field-survey data"},
+      {sev:"low", where:"Antwerp, Belgium", title:"Roastery under EU labour law",
+       text:"Permanent contracts, collective agreement in force.",
+       src:"Demo record · would map to jurisdiction data"}
+    ],
+    alts:["7290011053017"]
+  },
+
+  "7290011053017": {
+    emoji:"☕", name:"Single-Origin Coffee 500g", brand:"Meridian Direct Trade", price:"$15.20",
+    cat:"Coffee", co2:2.9, co2u:"kg CO₂e per kg", tiers:[5,5],
+    score:81,
+    metrics:[
+      {k:"Carbon", v:76, note:"2.9 kg CO₂e/kg · shade-grown, no clearing"},
+      {k:"Labor",  v:91, note:"Published farmgate price, 2.4× commodity"},
+      {k:"Water",  v:79, note:"Eco-pulping, treated effluent"},
+      {k:"Circularity", v:74, note:"Home-compostable bag and valve"}
+    ],
+    alert:{sev:"low", emoji:"✅", title:"Farmgate price published per lot",
+      text:"The price paid to each producer group is disclosed on the pack and independently spot-checked."},
+    chain:[
+      {icon:"🌱", stage:"Growing", loc:"Nyeri, Kenya",
+       who:"<b>Gakuyu Farmers' Co-op</b> — 480 members, shade-grown",
+       tags:[{t:"1.1 kg CO₂e",c:"co2"},{t:"No land clearing",c:""}]},
+      {icon:"🧺", stage:"Harvest", loc:"Nyeri, Kenya",
+       who:"Co-op members + day labour at <b>published day rate</b>",
+       tags:[{t:"Day rate posted",c:""},{t:"Above minimum",c:""}]},
+      {icon:"💧", stage:"Wet mill", loc:"Nyeri, Kenya",
+       who:"Co-op-owned eco-pulper, treated water returned",
+       tags:[{t:"0.4 kg CO₂e",c:"co2"},{t:"Effluent treated",c:""}]},
+      {icon:"🔥", stage:"Roasting", loc:"Bristol, UK",
+       who:"<b>Meridian Roastworks</b> — electric roaster, renewable tariff",
+       tags:[{t:"0.7 kg CO₂e",c:"co2"}]},
+      {icon:"📦", stage:"Freight & pack", loc:"Mombasa → Felixstowe → UK/EU",
+       who:"Ocean freight, compostable kraft pack",
+       tags:[{t:"0.7 kg CO₂e",c:"co2"},{t:"Compostable",c:""}]}
+    ],
+    labor:[
+      {sev:"low", where:"Nyeri, Kenya", title:"Farmgate price disclosed",
+       text:"Producers received 2.4× the C-market reference price for the current lot; the figure is printed on every bag.",
+       src:"Demo record · would map to contract disclosures"}
+    ],
+    alts:[]
+  },
+
+  "5060337502238": {
+    emoji:"📱", name:"Budget Smartphone A3", brand:"Kelvyn Mobile", price:"$189",
+    cat:"Smartphone", co2:58, co2u:"kg CO₂e per device", tiers:[2,6],
+    score:23,
+    metrics:[
+      {k:"Carbon", v:21, note:"58 kg CO₂e · 79% in chip fabrication"},
+      {k:"Labor",  v:14, note:"Cobalt origin unverified; 74 hr assembly weeks"},
+      {k:"Water",  v:31, note:"Ultrapure water for wafer fab"},
+      {k:"Circularity", v:19, note:"Glued battery, 2 years of security updates"}
+    ],
+    alert:{sev:"high", emoji:"⚠️", title:"Cobalt cannot be traced past the smelter",
+      text:"Battery cobalt enters through a smelter that mixes industrial and artisanal supply. Artisanal cobalt in this corridor carries documented child-labour risk."},
+    chain:[
+      {icon:"⛏️", stage:"Mining · Cobalt", loc:"Kolwezi corridor, DR Congo",
+       who:"Mixed industrial + <b>artisanal</b> supply, blended at smelter",
+       tags:[{t:"6.2 kg CO₂e",c:"co2"},{t:"Child-labour risk",c:"flag"},{t:"Origin unverified",c:"flag"}]},
+      {icon:"⛏️", stage:"Mining · Tin & tantalum", loc:"Bangka, Indonesia + Rwanda",
+       who:"Dredge mining; reef damage documented offshore Bangka",
+       tags:[{t:"3.1 kg CO₂e",c:"co2"},{t:"Habitat damage",c:"warn"}]},
+      {icon:"🔬", stage:"Chip fabrication", loc:"Hsinchu, Taiwan",
+       who:"<b>Advanced foundry, grid mix 83% fossil</b>",
+       tags:[{t:"38 kg CO₂e",c:"co2"},{t:"Highest single stage",c:"warn"}]},
+      {icon:"🔧", stage:"Final assembly", loc:"Zhengzhou, China",
+       who:"<b>Contract assembler</b> — peak-season 74 hr weeks reported",
+       tags:[{t:"7.4 kg CO₂e",c:"co2"},{t:"Excessive overtime",c:"flag"}]},
+      {icon:"✈️", stage:"Freight", loc:"Air freight to regional hubs",
+       who:"Air chosen over ocean for launch timing",
+       tags:[{t:"3.3 kg CO₂e",c:"co2"},{t:"Air freight",c:"warn"}]},
+      {icon:"🗑️", stage:"End of life", loc:"Global",
+       who:"Battery glued in; 2 yr update window shortens usable life",
+       tags:[{t:"Non-repairable",c:"flag"},{t:"2 yr updates",c:"warn"}]}
+    ],
+    labor:[
+      {sev:"high", where:"DR Congo", title:"Artisanal cobalt blended at the smelter",
+       text:"Once industrial and artisanal ore mix at the refiner, no downstream buyer can tell them apart — which is precisely why the mixing happens.",
+       src:"Demo record · would map to smelter-level chain of custody"},
+      {sev:"high", where:"Zhengzhou, China", title:"74-hour peak-season weeks",
+       text:"Reported assembly hours during launch quarters exceed both the legal cap and the brand's own supplier code.",
+       src:"Demo record · would map to audit + press reporting"},
+      {sev:"med", where:"Bangka, Indonesia", title:"Unregulated dredge mining",
+       text:"Tin dredging operates largely outside permit oversight, with divers working without safety equipment.",
+       src:"Demo record · would map to enforcement records"}
+    ],
+    alts:["4062300232112"]
+  },
+
+  "4062300232112": {
+    emoji:"📱", name:"Modular Phone Mk4", brand:"Rebuild Devices", price:"$499",
+    cat:"Smartphone", co2:41, co2u:"kg CO₂e per device", tiers:[5,6],
+    score:72,
+    metrics:[
+      {k:"Carbon", v:58, note:"41 kg CO₂e, amortised over 7 yr design life"},
+      {k:"Labor",  v:84, note:"Living-wage bonus paid at assembly tier"},
+      {k:"Water",  v:52, note:"Fab water use unchanged from industry norm"},
+      {k:"Circularity", v:94, note:"11 user-replaceable modules, 8 yr updates"}
+    ],
+    alert:{sev:"low", emoji:"✅", title:"Designed to be repaired, not replaced",
+      text:"Every high-wear part — battery, screen, camera, port — is user-swappable with a standard screwdriver, and spares are stocked for 8 years."},
+    chain:[
+      {icon:"⛏️", stage:"Mining · Cobalt", loc:"Certified sites, DR Congo",
+       who:"<b>Audited mine-to-refiner route</b>, no artisanal blending",
+       tags:[{t:"5.8 kg CO₂e",c:"co2"},{t:"Chain of custody",c:""}]},
+      {icon:"♻️", stage:"Recycled inputs", loc:"EU + Asia",
+       who:"Recycled tin, tungsten and rare earths where qualified",
+       tags:[{t:"−4 kg CO₂e",c:"co2"},{t:"Recycled content",c:""}]},
+      {icon:"🔬", stage:"Chip fabrication", loc:"Hsinchu, Taiwan",
+       who:"Same foundry tier as competitors — <b>the hard part to fix</b>",
+       tags:[{t:"32 kg CO₂e",c:"co2"},{t:"Largest stage",c:"warn"}]},
+      {icon:"🔧", stage:"Final assembly", loc:"Suzhou, China",
+       who:"<b>Living-wage top-up paid per device</b>, published annually",
+       tags:[{t:"5.1 kg CO₂e",c:"co2"},{t:"Wage bonus",c:""}]},
+      {icon:"🚢", stage:"Freight", loc:"Ocean to regional hubs",
+       who:"Ocean by default; air only for warranty parts",
+       tags:[{t:"1.1 kg CO₂e",c:"co2"}]},
+      {icon:"🔩", stage:"Repair & end of life", loc:"Global",
+       who:"Spares stocked 8 yr; trade-in refurb program",
+       tags:[{t:"11 modules",c:""},{t:"8 yr updates",c:""}]}
+    ],
+    labor:[
+      {sev:"low", where:"Suzhou, China", title:"Living-wage top-up per unit",
+       text:"A fixed per-device amount is paid into assembly-line wages above the contract rate, and the total is published each year.",
+       src:"Demo record · would map to brand disclosures"},
+      {sev:"low", where:"DR Congo", title:"Audited cobalt route",
+       text:"Cobalt is tracked from named mine sites to a single refiner with no artisanal blending permitted.",
+       src:"Demo record · would map to chain-of-custody audits"}
+    ],
+    alts:[]
+  }
+};
+
+const DEMO_CODES = ["4001724819400","0049000050103","5060337502238","8801043031127","7290011053017"];
+
+/* ---------- state ---------- */
+const store = {
+  get(){ try{ return JSON.parse(localStorage.getItem("ecotrace")||"{}"); }catch(e){ return {}; } },
+  set(v){ try{ localStorage.setItem("ecotrace", JSON.stringify(v)); }catch(e){} }
+};
+let state = Object.assign({pts:0, scans:[]}, store.get());
+const save = ()=>store.set(state);
+
+/* ---------- helpers ---------- */
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const scoreColor = n => n>=70?"var(--good)": n>=50?"var(--ok)": n>=35?"var(--warn)":"var(--bad)";
+const verdictOf = n => n>=70?"Solid choice": n>=50?"Mixed record": n>=35?"Poor record":"Serious concerns";
+
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2200);
+}
+function paintPts(){
+  document.querySelectorAll("#ptsScan,#ptsResult").forEach(e=>e.textContent=state.pts+" pts");
+}
+function go(id){
+  if(id!=="s-scan" && camOn) stopCamera();   // never leave the camera running off-screen
+  document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));
+  const lit = id==="s-result" ? "s-scan" : id;   // result screen still belongs to the Scan tab
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("on",b.dataset.go===lit));
+  if(id==="s-history") renderHistory();
+  if(id==="s-compare") renderCompare();
+}
+
+/* ---------- scanner ---------- */
+$("#vfBars").innerHTML = Array.from({length:22},()=>"<span></span>").join("");
+
+document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>go(b.dataset.go));
+
+/* ---------- real camera + barcode decoding ----------
+   Two engines. Chrome/Edge get the native BarcodeDetector API. Safari and
+   Firefox don't ship it, so those fall back to ZXing compiled to WebAssembly —
+   which is what makes this work on an iPhone. */
+const ZXING_URL = "https://cdn.jsdelivr.net/npm/zxing-wasm@2/+esm";
+const FORMATS = ["EAN-13","EAN-8","UPC-A","UPC-E","Code128","Code39","ITF"];
+
+let stream=null, detector=null, detectTimer=null, camOn=false;
+let engine=null;        // "native" | "wasm"
+let zx=null, zxLoading=null;
+let pendingSlot=null;   // when the camera was opened from a compare slot
+
+function camMsg(msg, isErr){
+  const el=$("#vfStatus");
+  el.textContent=msg;
+  el.classList.toggle("err", !!isErr);
+}
+function engineMsg(){
+  $("#engine").textContent = engine==="native" ? "Decoder: native BarcodeDetector"
+    : engine==="wasm" ? "Decoder: ZXing (WebAssembly)" : "";
+}
+
+function loadZXing(){
+  if(zx) return Promise.resolve(zx);
+  if(!zxLoading) zxLoading = import(ZXING_URL).then(m=>(zx=m)).catch(err=>{ zxLoading=null; throw err; });
+  return zxLoading;
+}
+
+/* Grab the middle band of the video — the bit inside the on-screen frame —
+   downscaled, because decoding a full 1080p frame every tick is wasteful. */
+function grabFrame(){
+  const v=$("#cam"), vw=v.videoWidth, vh=v.videoHeight;
+  if(!vw || !vh) return null;
+  const cw=Math.round(vw*0.84), ch=Math.round(vh*0.5);
+  const sx=Math.round((vw-cw)/2), sy=Math.round((vh-ch)/2);
+  const scale=Math.min(1, 800/cw);
+  const cv=$("#frame");
+  cv.width=Math.round(cw*scale); cv.height=Math.round(ch*scale);
+  const ctx=cv.getContext("2d",{willReadFrequently:true});
+  ctx.drawImage(v, sx,sy,cw,ch, 0,0,cv.width,cv.height);
+  return ctx.getImageData(0,0,cv.width,cv.height);
+}
+
+async function startCamera(){
+  if(camOn) return;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    camMsg("This browser exposes no camera API. Type a barcode or pick a demo product below.", true); return;
+  }
+  camMsg("Requesting camera…");
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}, audio:false});
+  }catch(err){
+    const m = {
+      NotAllowedError:"Camera permission was denied. Allow it in the address bar, then tap Open camera again.",
+      NotFoundError:"No camera found on this device.",
+      NotReadableError:"The camera is already in use by another app.",
+      SecurityError:"Camera needs a secure context — open this file over https:// or localhost."
+    }[err.name] || ("Couldn't open the camera ("+err.name+").");
+    camMsg(m+" You can still type a barcode or pick a demo product.", true);
+    return;
+  }
+  const v=$("#cam");
+  v.srcObject=stream;
+  try{ await v.play(); }catch(e){}
+  $("#viewfinder").classList.add("live");
+  camOn=true;
+  $("#scanBtn").textContent="Stop camera";
+
+  if("BarcodeDetector" in window){
+    try{
+      const supported = await window.BarcodeDetector.getSupportedFormats();
+      const want = supported.filter(f=>/ean_13|ean_8|upc_a|upc_e|code_128|code_39|itf/.test(f));
+      detector = new window.BarcodeDetector(want.length?{formats:want}:undefined);
+      engine="native";
+    }catch(e){ detector=null; }
+  }
+
+  if(!detector){
+    camMsg("Starting the barcode decoder…");
+    try{
+      await loadZXing();
+      engine="wasm";
+    }catch(e){
+      engine=null; engineMsg();
+      camMsg("Camera is live, but the barcode decoder couldn't load — it needs a network connection the first time. Type the number instead.", true);
+      return;
+    }
+  }
+
+  engineMsg();
+  camMsg("Hold a barcode inside the frame");
+  detectTimer = setInterval(detectTick, engine==="native" ? 220 : 320);
+}
+
+function stopCamera(){
+  if(detectTimer){ clearInterval(detectTimer); detectTimer=null; }
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  const v=$("#cam"); if(v) v.srcObject=null;
+  $("#viewfinder").classList.remove("live");
+  camOn=false; detector=null;
+  $("#scanBtn").textContent="Open camera";
+  camMsg("Camera is off");
+}
+
+let busy=false;
+async function detectTick(){
+  if(busy || !camOn) return;
+  busy=true;
+  try{
+    let code="";
+    if(engine==="native"){
+      const hits = await detector.detect($("#cam"));
+      if(hits && hits.length) code = String(hits[0].rawValue||"").trim();
+    }else if(engine==="wasm"){
+      const img = grabFrame();
+      if(img){
+        const hits = await zx.readBarcodesFromImageData(img, {formats:FORMATS, tryHarder:true, maxNumberOfSymbols:1});
+        if(hits && hits.length && hits[0].isValid !== false) code = String(hits[0].text||"").trim();
+      }
+    }
+    if(code) onDetected(code);
+  }catch(e){ /* transient decode misses are normal between frames */ }
+  busy=false;
+}
+
+/* Photo fallback — covers a denied camera, a laptop with no rear camera, and
+   iOS, where tapping this opens the camera roll or the camera directly. */
+$("#photoBtn").onclick = ()=>$("#photoInput").click();
+$("#photoInput").onchange = async e=>{
+  const f = e.target.files && e.target.files[0];
+  e.target.value="";
+  if(!f) return;
+  camMsg("Reading that photo…");
+  try{ await loadZXing(); }
+  catch(err){ camMsg("The barcode decoder couldn't load — it needs a network connection the first time.", true); return; }
+  try{
+    const hits = await zx.readBarcodesFromImageFile(f, {formats:FORMATS, tryHarder:true, maxNumberOfSymbols:1});
+    const code = hits && hits.length ? String(hits[0].text||"").trim() : "";
+    if(code) onDetected(code);
+    else camMsg("No barcode found in that photo. Get closer, hold the barcode level, and avoid glare.", true);
+  }catch(err){
+    camMsg("Couldn't read that image ("+(err.name||"error")+").", true);
+  }
+};
+
+function onDetected(code){
+  const flash=$("#hitflash");
+  flash.classList.remove("go"); void flash.offsetWidth; flash.classList.add("go");
+  if(navigator.vibrate) navigator.vibrate(35);
+  stopCamera();
+  const slot=pendingSlot; pendingSlot=null;
+  if(slot){ fillSlot(slot, code); return; }
+  lookup(code);
+}
+
+$("#scanBtn").onclick = ()=>{ camOn ? stopCamera() : startCamera(); };
+$("#codeGo").onclick = ()=>{
+  const c = $("#codeInput").value.trim();
+  if(!c) return;
+  $("#codeInput").value="";
+  const slot=pendingSlot; pendingSlot=null;
+  if(slot) fillSlot(slot, c); else lookup(c);
+};
+$("#codeInput").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#codeGo").click(); });
+
+$("#demoRow").innerHTML = DEMO_CODES.map(c=>{
+  const p=DB[c];
+  return `<button class="demo-chip" data-code="${c}">
+    <div class="dc-e">${p.emoji}</div>
+    <div class="dc-n">${esc(p.name)}</div>
+    <div class="dc-b">${esc(p.brand)}</div>
+  </button>`;
+}).join("");
+$("#demoRow").onclick = e=>{
+  const b=e.target.closest("[data-code]"); if(b) lookup(b.dataset.code);
+};
+
+/* A real barcode resolves against the demo database, or honestly reports a miss. */
+function lookup(code){
+  if(camOn) stopCamera();
+  if(DB[code]) showResult(code);
+  else showNoRecord(code);
+}
+
+function showNoRecord(code){
+  currentCode=null;
+  $("#resultScroll").innerHTML = `
+    <div class="norec">
+      <div class="ne">🔍</div>
+      <h3>No record for this barcode</h3>
+      <div class="code">${esc(code)}</div>
+      <p>The barcode decoded fine — EcoTrace just has no supply-chain data behind it. This prototype ships
+      with ${Object.keys(DB).length} products in its database, so almost every real product you point the camera
+      at will land here.</p>
+      <p>A production build would fall back to a partial answer: brand-level averages, the category's typical
+      footprint, and whatever the brand publishes about its suppliers — labelled clearly as an estimate rather
+      than a trace.</p>
+    </div>
+    <button class="swap" id="noRecDemo">Browse the demo products instead</button>
+    <div class="disc"><b>Prototype.</b> The demo database is invented data about fictional brands.</div>`;
+  $("#noRecDemo").onclick = ()=>go("s-scan");
+  go("s-result");
+  $("#resultScroll").scrollTop=0;
+}
+
+/* ---------- result ---------- */
+let currentCode=null;
+
+function showResult(code){
+  const p = DB[code];
+  if(!p){ toast("Unknown barcode"); return; }
+  currentCode = code;
+
+  const R = 48, C = 2*Math.PI*R;
+  const col = scoreColor(p.score);
+
+  const metrics = p.metrics.map(m=>`
+    <div>
+      <div class="mbar-top"><span>${esc(m.k)}</span><span>${m.v}</span></div>
+      <div class="track"><i data-w="${m.v}" style="background:${scoreColor(m.v)}"></i></div>
+      <div class="mbar-note">${esc(m.note)}</div>
+    </div>`).join("");
+
+  const chain = p.chain.map(s=>`
+    <div class="stage">
+      <div class="dot">${s.icon}</div>
+      <h5>${esc(s.stage)}</h5>
+      <div class="loc">${esc(s.loc)}</div>
+      <div class="who">${s.who}</div>
+      <div class="tagrow">${s.tags.map(t=>`<span class="tag ${t.c}">${esc(t.t)}</span>`).join("")}</div>
+    </div>`).join("");
+
+  const labor = p.labor.map(l=>`
+    <div class="lcard">
+      <div class="lcard-top">
+        <span class="pill ${l.sev}">${l.sev==="high"?"High risk":l.sev==="med"?"Medium risk":"Cleared"}</span>
+        <span class="ab" style="font-size:.78rem;color:var(--muted);font-weight:700">${esc(l.where)}</span>
+      </div>
+      <h5>${esc(l.title)}</h5>
+      <p>${esc(l.text)}</p>
+      <div class="src">${esc(l.src)}</div>
+    </div>`).join("");
+
+  const alts = p.alts.length ? p.alts.map(a=>{
+    const q=DB[a], d=q.score-p.score;
+    return `<button class="alt" data-alt="${a}">
+      <span class="ae">${q.emoji}</span>
+      <span>
+        <span class="an">${esc(q.name)}</span>
+        <span class="ab">${esc(q.brand)} · ${esc(q.price)}</span>
+      </span>
+      <span class="as"><b style="color:${scoreColor(q.score)}">${q.score}</b><span>+${d} better</span></span>
+    </button>`;
+  }).join("") + `<button class="swap" id="swapBtn">I picked the better option → +${p.alts.length?Math.max(...p.alts.map(a=>DB[a].score-p.score)):0} pts</button>`
+   : `<div class="empty">This is already the strongest option we have data for in its category.</div>`;
+
+  $("#resultScroll").innerHTML = `
+    <div class="prod-head">
+      <div class="prod-emoji">${p.emoji}</div>
+      <div>
+        <div class="prod-name">${esc(p.name)}</div>
+        <div class="prod-brand">${esc(p.brand)} · ${esc(p.price)}</div>
+        <div class="prod-code">${esc(code)}</div>
+      </div>
+    </div>
+
+    <div class="ring-wrap">
+      <div class="ring">
+        <svg width="112" height="112">
+          <circle cx="56" cy="56" r="${R}" fill="none" stroke="#ffffff14" stroke-width="9"/>
+          <circle id="ringArc" cx="56" cy="56" r="${R}" fill="none" stroke="${col}" stroke-width="9"
+            stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}"
+            style="transition:stroke-dashoffset 1s cubic-bezier(.3,1,.4,1)"/>
+        </svg>
+        <div class="val"><div class="num" style="color:${col}">${p.score}</div><div class="of">OF 100</div></div>
+      </div>
+      <div>
+        <div class="verdict" style="color:${col}">${verdictOf(p.score)}</div>
+        <div class="verdict-sub">Nature and human cost, combined across every stage we can see.</div>
+      </div>
+    </div>
+
+    <div class="bars-list">${metrics}</div>
+
+    <div class="alert sev-${p.alert.sev}">
+      <span class="ae">${p.alert.emoji}</span>
+      <div><h4>${esc(p.alert.title)}</h4><p>${esc(p.alert.text)}</p></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab on" data-pane="xray">X-Ray</button>
+      <button class="tab" data-pane="labor">Labor</button>
+      <button class="tab" data-pane="alts">Better</button>
+    </div>
+
+    <div class="pane on" id="pane-xray">${chain}</div>
+    <div class="pane" id="pane-labor">${labor}</div>
+    <div class="pane" id="pane-alts">${alts}</div>
+
+    <div class="disc">
+      <b>Prototype.</b> Every supply-chain record, score and brand on this screen is invented for the demo —
+      the brands are fictional and none of it describes a real company. A real EcoTrace would resolve the GTIN
+      against published supplier lists, life-cycle inventories and labor-enforcement registries, and would show
+      its sources and confidence per stage.
+    </div>`;
+
+  // animate
+  requestAnimationFrame(()=>{
+    const arc=$("#ringArc");
+    if(arc) arc.style.strokeDashoffset = C*(1-p.score/100);
+    document.querySelectorAll("#resultScroll .track i").forEach(i=>i.style.width=i.dataset.w+"%");
+  });
+
+  // tabs
+  $("#resultScroll").querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+    $("#resultScroll").querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
+    $("#resultScroll").querySelectorAll(".pane").forEach(pn=>pn.classList.toggle("on",pn.id==="pane-"+t.dataset.pane));
+  });
+
+  // alternatives
+  $("#resultScroll").querySelectorAll("[data-alt]").forEach(b=>b.onclick=()=>{
+    $("#resultScroll").scrollTop=0;
+    showResult(b.dataset.alt);
+  });
+  const swap=$("#swapBtn");
+  if(swap) swap.onclick=()=>{
+    const best = Math.max(...p.alts.map(a=>DB[a].score-p.score));
+    state.pts += best;
+    state.swaps = (state.swaps||0)+1;
+    state.saved = (state.saved||0)+best;
+    save(); paintPts();
+    toast("+"+best+" pts · logged as an avoided purchase");
+    swap.disabled=true; swap.style.opacity=".5"; swap.textContent="Logged ✓";
+  };
+
+  // history
+  const prior = state.scans.findIndex(s=>s.code===code);
+  if(prior>-1) state.scans.splice(prior,1);
+  state.scans.unshift({code, name:p.name, brand:p.brand, emoji:p.emoji, score:p.score, at:Date.now()});
+  state.scans = state.scans.slice(0,40);
+  if(prior===-1){ state.pts += 5; toast("+5 pts for scanning something new"); }
+  save(); paintPts();
+
+  go("s-result");
+  $("#resultScroll").scrollTop=0;
+}
+
+$("#backBtn").onclick = ()=>go("s-scan");
+
+$("#toCompare").onclick = ()=>{
+  if(!currentCode) return go("s-compare");
+  // drop this product into the first free slot, then ask for its opponent
+  const slot = cmp[0]===currentCode||cmp[1]===currentCode ? -1 : (cmp[0]?(cmp[1]?0:1):0);
+  if(slot>-1) cmp[slot]=currentCode;
+  go("s-compare");
+  if(!cmp[0]||!cmp[1]) openSheet(cmp[0]?1:0);
+};
+
+/* ---------- compare ---------- */
+let cmp=[null,null];
+const flagsIn = p => p.chain.reduce((n,s)=>n+s.tags.filter(t=>t.c==="flag").length,0);
+
+function fillSlot(slot, code){
+  if(!DB[code]){ toast("No record for "+code+" — pick a demo product"); go("s-compare"); renderCompare(); return; }
+  cmp[slot]=code;
+  go("s-compare");
+  renderCompare();
+}
+
+function openSheet(slot){
+  $("#sheetTitle").textContent = "Product "+(slot===0?"A":"B");
+  $("#sheetSub").textContent = "Scan a real barcode, or choose from the demo database.";
+  $("#sheetList").innerHTML = Object.keys(DB).map(c=>{
+    const p=DB[c];
+    return `<button class="hrow" data-pick="${c}">
+      <span class="he">${p.emoji}</span>
+      <span><span class="hn">${esc(p.name)}</span><br><span class="hb">${esc(p.brand)} · ${esc(p.cat)}</span></span>
+      <span class="hs" style="color:${scoreColor(p.score)}">${p.score}</span>
+    </button>`;
+  }).join("");
+  $("#sheetList").querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{
+    closeSheet(); fillSlot(slot, b.dataset.pick);
+  });
+  $("#sheetCam").onclick = ()=>{
+    closeSheet();
+    pendingSlot = slot;
+    go("s-scan");
+    camMsg("Scanning for product "+(slot===0?"A":"B")+"…");
+    startCamera();
+  };
+  $("#sheet").classList.add("on");
+}
+const closeSheet = ()=>$("#sheet").classList.remove("on");
+$("#sheetScrim").onclick = closeSheet;
+
+function slotHTML(i){
+  const c=cmp[i], p=c&&DB[c];
+  if(!p) return `<button class="slot" data-slot="${i}">
+      <span class="ph">＋</span><span class="pht">Add product ${i===0?"A":"B"}</span></button>`;
+  const win = cmp[0]&&cmp[1] && p.score===Math.max(DB[cmp[0]].score,DB[cmp[1]].score) && DB[cmp[0]].score!==DB[cmp[1]].score;
+  return `<button class="slot filled ${win?"winner":""}" data-slot="${i}">
+      <span class="se">${p.emoji}</span>
+      <span class="sn">${esc(p.name)}</span>
+      <span class="sb">${esc(p.brand)}</span>
+      <span class="ss" style="color:${scoreColor(p.score)}">${p.score}</span>
+    </button>`;
+}
+
+function renderCompare(){
+  const A=cmp[0]&&DB[cmp[0]], B=cmp[1]&&DB[cmp[1]];
+  let body="";
+
+  if(A&&B){
+    const d = B.score-A.score;
+    const better = d===0 ? null : (d>0?B:A);
+    const mismatch = A.cat!==B.cat;
+
+    body += mismatch
+      ? `<div class="cbanner mismatch"><h4>⚠️ Different categories</h4>
+         <p>${esc(A.cat)} vs ${esc(B.cat)}. The 1–100 scores are still comparable — they're normalised within a
+         category — but the raw CO₂e figures below are not.</p></div>`
+      : `<div class="cbanner"><h4>${ better ? esc(better.brand)+" scores "+Math.abs(d)+" points higher" : "Dead heat — both score "+A.score }</h4>
+         <p>${ better ? "Same category, same job. The gap is the part of the footprint the cheaper option pushes onto someone else." : "Two different routes to the same total cost." }</p></div>`;
+
+    body += A.metrics.map((m,i)=>{
+      const bv=B.metrics[i].v, av=m.v;
+      return `<div class="crow">
+        <div class="cl">
+          <span style="color:${av>=bv?"var(--good)":"var(--muted)"}">${av}</span>
+          <span class="mid">${esc(m.k)}</span>
+          <span style="margin-left:auto;color:${bv>=av?"var(--good)":"var(--muted)"}">${bv}</span>
+        </div>
+        <div class="cbars">
+          <span class="half l"><i data-w="${av}" style="background:${scoreColor(av)}"></i></span>
+          <span class="half r"><i data-w="${bv}" style="background:${scoreColor(bv)}"></i></span>
+        </div>
+      </div>`;
+    }).join("");
+
+    const rows = [
+      ["Footprint", A.co2, B.co2, A.co2<B.co2?0:B.co2<A.co2?1:-1,
+        mismatch? A.co2u.replace("kg CO₂e ","")+" / "+B.co2u.replace("kg CO₂e ","") : A.co2u],
+      ["Red flags", flagsIn(A), flagsIn(B), flagsIn(A)<flagsIn(B)?0:flagsIn(B)<flagsIn(A)?1:-1, "stages with an unresolved issue"],
+      ["Traced", A.tiers[0]+"/"+A.tiers[1], B.tiers[0]+"/"+B.tiers[1],
+        A.tiers[0]/A.tiers[1]>B.tiers[0]/B.tiers[1]?0:B.tiers[0]/B.tiers[1]>A.tiers[0]/A.tiers[1]?1:-1, "supply tiers verified"],
+      ["Price", A.price, B.price, -1, "what you pay at the till"]
+    ];
+    body += `<div class="ctable">` + rows.map(r=>`
+      <div class="ctr">
+        <span class="a ${r[3]===0?"win":""}">${esc(String(r[1]))}</span>
+        <span class="k">${esc(r[0])}<br><span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.6">${esc(r[4])}</span></span>
+        <span class="b ${r[3]===1?"win":""}">${esc(String(r[2]))}</span>
+      </div>`).join("") + `</div>`;
+
+    // widest metric gap gets a callout, with both sides' reasoning
+    let gi=0, gd=-1;
+    A.metrics.forEach((m,i)=>{ const x=Math.abs(m.v-B.metrics[i].v); if(x>gd){ gd=x; gi=i; } });
+    body += `<div class="gap">
+      <div class="gt">Where the gap opens · ${gd} points</div>
+      <h4>${esc(A.metrics[gi].k)}</h4>
+      <div class="gl"><b>${esc(A.brand)} — ${A.metrics[gi].v}</b>${esc(A.metrics[gi].note)}</div>
+      <div class="gl"><b>${esc(B.brand)} — ${B.metrics[gi].v}</b>${esc(B.metrics[gi].note)}</div>
+    </div>`;
+
+    const wi = d>0?1:0;
+    body += `<div class="crow2">
+      <button id="cmpOpen">Full report ${wi===1?"B":"A"}</button>
+      ${ better ? `<button class="primary" id="cmpPick">I'd buy ${wi===1?"B":"A"} → +${Math.abs(d)} pts</button>` : "" }
+    </div>`;
+  } else {
+    body = `<div class="empty">Fill both slots to see them side by side.<br>
+      Scan two products on the shelf, or pull them from the demo database.</div>`;
+  }
+
+  $("#compareScroll").innerHTML = `
+    <div class="slots">${slotHTML(0)}<span class="vs">VS</span>${slotHTML(1)}</div>
+    ${body}
+    <div class="disc"><b>Prototype.</b> Both products are invented demo records about fictional brands.
+    Scores are normalised within a category, so cross-category comparisons rank behaviour, not absolute impact.</div>`;
+
+  $("#compareScroll").querySelectorAll("[data-slot]").forEach(b=>b.onclick=()=>openSheet(+b.dataset.slot));
+
+  requestAnimationFrame(()=>{
+    document.querySelectorAll("#compareScroll .cbars i").forEach(i=>i.style.width=i.dataset.w+"%");
+  });
+
+  const open=$("#cmpOpen");
+  if(open) open.onclick=()=>showResult(DB[cmp[1]].score>DB[cmp[0]].score?cmp[1]:cmp[0]);
+  const pick=$("#cmpPick");
+  if(pick) pick.onclick=()=>{
+    const gain=Math.abs(DB[cmp[1]].score-DB[cmp[0]].score);
+    state.pts+=gain; state.swaps=(state.swaps||0)+1; save(); paintPts();
+    toast("+"+gain+" pts · logged as a better choice");
+    pick.disabled=true; pick.style.opacity=".5"; pick.textContent="Logged ✓";
+  };
+}
+
+$("#cmpReset").onclick = ()=>{ cmp=[null,null]; renderCompare(); toast("Both slots cleared"); };
+
+/* ---------- history ---------- */
+function renderHistory(){
+  const s = state.scans;
+  const avg = s.length ? Math.round(s.reduce((a,b)=>a+b.score,0)/s.length) : 0;
+  const flagged = s.filter(x=>x.score<50).length;
+
+  $("#historyScroll").innerHTML = `
+    <div class="stat-grid">
+      <div class="stat"><b style="color:${scoreColor(avg)}">${avg||"–"}</b><span>AVG BASKET SCORE</span></div>
+      <div class="stat"><b>${state.pts}</b><span>IMPACT POINTS</span></div>
+      <div class="stat"><b style="color:var(--bad)">${flagged}</b><span>SCANS UNDER 50</span></div>
+      <div class="stat"><b style="color:var(--good)">${state.swaps||0}</b><span>BETTER SWAPS</span></div>
+    </div>
+
+    <div class="sec-title">Scan history</div>
+    ${ s.length ? s.map(x=>`
+      <button class="hrow" data-code="${x.code}">
+        <span class="he">${x.emoji}</span>
+        <span><span class="hn">${esc(x.name)}</span><br><span class="hb">${esc(x.brand)}</span></span>
+        <span class="hs" style="color:${scoreColor(x.score)}">${x.score}</span>
+      </button>`).join("")
+      : `<div class="empty">Nothing scanned yet.<br>Head to the scanner and try a demo product.</div>` }
+
+    <div class="disc">
+      <b>Prototype.</b> Scores and supply-chain records are invented demo data about fictional brands.
+      History is stored only in this browser.
+    </div>`;
+
+  $("#historyScroll").querySelectorAll("[data-code]").forEach(b=>b.onclick=()=>showResult(b.dataset.code));
+}
+
+$("#clearBtn").onclick = ()=>{
+  state = {pts:0, scans:[], swaps:0, saved:0};
+  save(); paintPts(); renderHistory(); toast("History cleared");
+};
+
+paintPts();
+// show which decoder this browser will use, before the camera is even opened
+engine = ("BarcodeDetector" in window) ? "native" : "wasm";
+engineMsg();
+</script>
+</body>
+</html>
