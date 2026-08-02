@@ -729,7 +729,7 @@ function camMsg(msg, isErr){
   el.textContent=msg;
   el.classList.toggle("err", !!isErr);
 }
-const APP_VERSION = "v4";
+const APP_VERSION = "v5";
 function engineMsg(){
   const d = engine==="native" ? "native BarcodeDetector" : engine==="wasm" ? "ZXing (WebAssembly)" : "none";
   $("#engine").textContent = APP_VERSION+" · Decoder: "+d+(zx?" · ready":"");
@@ -777,8 +777,29 @@ function codeVariants(raw){
   return [...out].filter(c=>c.length>=8 && c.length<=14);
 }
 
+function resumeDecoding(){
+  engineMsg();
+  camMsg("Hold a barcode inside the frame");
+  scanStart = Date.now();
+  detectTimer = setInterval(detectTick, engine==="native" ? 220 : 300);
+}
+
 async function startCamera(){
   if(camOn) return;
+
+  // If we already hold a live stream, reuse it. Calling getUserMedia again is
+  // what makes iOS pop the permission prompt a second time.
+  if(stream && stream.getVideoTracks().some(t=>t.readyState==="live")){
+    stream.getVideoTracks().forEach(t=>t.enabled=true);
+    $("#viewfinder").classList.add("live");
+    camOn=true;
+    $("#scanBtn").textContent="Stop camera";
+    try{ await $("#cam").play(); }catch(e){}
+    if(!detector && engine==="native"){ engine = zx ? "wasm" : "native"; }
+    resumeDecoding();
+    return;
+  }
+
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
     camMsg("This browser exposes no camera API. Type a barcode or pick a demo product below.", true); return;
   }
@@ -823,10 +844,7 @@ async function startCamera(){
     }
   }
 
-  engineMsg();
-  camMsg("Hold a barcode inside the frame");
-  scanStart = Date.now();
-  detectTimer = setInterval(detectTick, engine==="native" ? 220 : 300);
+  resumeDecoding();
 }
 
 /* If nothing has decoded after a while, say something useful instead of
@@ -845,15 +863,27 @@ function scanHint(){
   }
 }
 
+/* Pause, don't tear down. The stream stays open so the browser keeps treating
+   the permission as granted — stopping every track is what forces a fresh
+   prompt next time. The camera indicator stays lit while paused, which is the
+   honest trade: the camera really is still held. */
 function stopCamera(){
   if(detectTimer){ clearInterval(detectTimer); detectTimer=null; }
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  const v=$("#cam"); if(v) v.srcObject=null;
+  if(stream) stream.getVideoTracks().forEach(t=>t.enabled=false);
   $("#viewfinder").classList.remove("live");
-  camOn=false; detector=null;
+  camOn=false; scanStart=0;
   $("#scanBtn").textContent="Open camera";
   camMsg("Camera is off");
 }
+
+/* Full teardown, on the way out of the page. */
+function releaseCamera(){
+  stopCamera();
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  const v=$("#cam"); if(v) v.srcObject=null;
+  detector=null;
+}
+window.addEventListener("pagehide", releaseCamera);
 
 let busy=false;
 async function detectTick(){
