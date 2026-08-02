@@ -729,9 +729,10 @@ function camMsg(msg, isErr){
   el.textContent=msg;
   el.classList.toggle("err", !!isErr);
 }
+const APP_VERSION = "v4";
 function engineMsg(){
-  $("#engine").textContent = engine==="native" ? "Decoder: native BarcodeDetector"
-    : engine==="wasm" ? "Decoder: ZXing (WebAssembly)" : "";
+  const d = engine==="native" ? "native BarcodeDetector" : engine==="wasm" ? "ZXing (WebAssembly)" : "none";
+  $("#engine").textContent = APP_VERSION+" · Decoder: "+d+(zx?" · ready":"");
 }
 
 function loadZXing(){
@@ -740,19 +741,40 @@ function loadZXing(){
   return zxLoading;
 }
 
-/* Grab the middle band of the video — the bit inside the on-screen frame —
-   downscaled, because decoding a full 1080p frame every tick is wasteful. */
+/* Grab a frame to decode. The old version cropped a narrow centre band, which
+   silently missed any barcode the user had framed slightly high or low — the
+   video is object-fit:cover, so what's on screen and what's in the raw frame
+   don't line up. Now we alternate: the whole frame (catches barcodes anywhere,
+   and far away), then a centre zoom (catches small or low-contrast ones). */
+let zoomTick=false;
 function grabFrame(){
   const v=$("#cam"), vw=v.videoWidth, vh=v.videoHeight;
   if(!vw || !vh) return null;
-  const cw=Math.round(vw*0.84), ch=Math.round(vh*0.5);
+  zoomTick=!zoomTick;
+  const f = zoomTick ? 1 : 0.55;                    // full frame, then centre zoom
+  const cw=Math.round(vw*f), ch=Math.round(vh*f);
   const sx=Math.round((vw-cw)/2), sy=Math.round((vh-ch)/2);
-  const scale=Math.min(1, 800/cw);
+  const scale=Math.min(1, 1000/cw);
   const cv=$("#frame");
   cv.width=Math.round(cw*scale); cv.height=Math.round(ch*scale);
   const ctx=cv.getContext("2d",{willReadFrequently:true});
   ctx.drawImage(v, sx,sy,cw,ch, 0,0,cv.width,cv.height);
   return ctx.getImageData(0,0,cv.width,cv.height);
+}
+
+/* Barcode numbers get mistyped and mis-scanned in predictable ways: the small
+   digits printed outside the bars get missed, and UPC-A (12) vs EAN-13 (13)
+   differ only by a leading zero. Try the sensible variants before giving up. */
+function codeVariants(raw){
+  const d = String(raw).replace(/\D/g,"");
+  if(!d) return [];
+  const out = new Set([d]);
+  out.add(d.padStart(12,"0"));
+  out.add(d.padStart(13,"0"));
+  out.add(d.replace(/^0+/,""));
+  if(d.length===12) out.add("0"+d);
+  if(d.length===13 && d[0]==="0") out.add(d.slice(1));
+  return [...out].filter(c=>c.length>=8 && c.length<=14);
 }
 
 async function startCamera(){
@@ -803,7 +825,24 @@ async function startCamera(){
 
   engineMsg();
   camMsg("Hold a barcode inside the frame");
-  detectTimer = setInterval(detectTick, engine==="native" ? 220 : 320);
+  scanStart = Date.now();
+  detectTimer = setInterval(detectTick, engine==="native" ? 220 : 300);
+}
+
+/* If nothing has decoded after a while, say something useful instead of
+   leaving the user staring at a frame wondering if it's broken. */
+let scanStart=0;
+const SCAN_TIPS = [
+  [7000,  "Still looking — fill more of the frame with the barcode"],
+  [14000, "Try more light, and hold the phone steady about 15 cm away"],
+  [22000, "Still nothing? Tap 'Scan from a photo' and take a close-up instead"]
+];
+function scanHint(){
+  if(!scanStart) return;
+  const t = Date.now()-scanStart;
+  for(let i=SCAN_TIPS.length-1;i>=0;i--){
+    if(t > SCAN_TIPS[i][0]){ camMsg(SCAN_TIPS[i][1]); return; }
+  }
 }
 
 function stopCamera(){
@@ -832,7 +871,7 @@ async function detectTick(){
         if(hits && hits.length && hits[0].isValid !== false) code = String(hits[0].text||"").trim();
       }
     }
-    if(code) onDetected(code);
+    if(code) onDetected(code); else scanHint();
   }catch(e){ /* transient decode misses are normal between frames */ }
   busy=false;
 }
@@ -925,13 +964,18 @@ function pickEmoji(tags){
 }
 
 async function fetchLive(code){
-  for(const host of OFF_HOSTS){
-    try{
-      const r = await fetch(`${host}/api/v2/product/${encodeURIComponent(code)}.json?fields=${OFF_FIELDS}`);
-      if(!r.ok) continue;
-      const j = await r.json();
-      if(j && j.status===1 && j.product && (j.product.product_name||j.product.brands)) return j.product;
-    }catch(e){ /* try the next database */ }
+  for(const variant of codeVariants(code)){
+    for(const host of OFF_HOSTS){
+      try{
+        const r = await fetch(`${host}/api/v2/product/${encodeURIComponent(variant)}.json?fields=${OFF_FIELDS}`);
+        if(!r.ok) continue;
+        const j = await r.json();
+        if(j && j.status===1 && j.product && (j.product.product_name||j.product.brands)){
+          j.product._matched = variant;
+          return j.product;
+        }
+      }catch(e){ /* try the next database */ }
+    }
   }
   return null;
 }
@@ -1042,9 +1086,13 @@ function showNoRecord(code){
       <div class="ne">🔍</div>
       <h3>No record for this barcode</h3>
       <div class="code">${esc(code)}</div>
-      <p>The barcode decoded fine, and EcoTrace checked Open Food Facts, Open Beauty Facts and Open Products
-      Facts — none of them has this item. That is normal for clothing, electronics, furniture and anything
-      sold outside Europe, since those open databases mostly cover food, drink and cosmetics.</p>
+      ${ String(code).replace(/\D/g,"").length < 12 ? `<p style="color:#ffc7d1"><b>This code looks too short.</b>
+      Shop barcodes have 12 or 13 digits, and this one has ${String(code).replace(/\D/g,"").length}. If you typed it
+      in, check the small digits printed <b>outside</b> the bars — there is usually one on the far left and one
+      on the far right, and they are easy to miss.</p>` : "" }
+      <p>EcoTrace checked Open Food Facts, Open Beauty Facts and Open Products Facts — none of them has this
+      item. Food, drink and cosmetics are well covered. Clothing, electronics and furniture are not in any
+      open barcode database, so those will always land here.</p>
       <p>If it is a grocery product, you can add it yourself at <b>openfoodfacts.org</b> — the database is
       built by volunteers, and once it is in there this app will find it.</p>
     </div>
@@ -1400,6 +1448,9 @@ paintPts();
 // show which decoder this browser will use, before the camera is even opened
 engine = ("BarcodeDetector" in window) ? "native" : "wasm";
 engineMsg();
+// on iPhone there's no native decoder, so fetch ZXing now rather than making
+// the user wait for a download the moment they first point at a barcode
+if(engine==="wasm") loadZXing().then(engineMsg).catch(()=>{});
 </script>
 </body>
 </html>
