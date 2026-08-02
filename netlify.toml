@@ -1,0 +1,14 @@
+[build]
+  publish = "."
+
+# Serve the scanner at the site root, so the address stays short and the
+# camera permission prompt shows a clean domain instead of a long file path.
+[[redirects]]
+  from = "/"
+  to = "/ecotrace.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
