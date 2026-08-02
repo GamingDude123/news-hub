@@ -685,8 +685,10 @@ const save = ()=>store.set(state);
 /* ---------- helpers ---------- */
 const $ = s=>document.querySelector(s);
 const esc = s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const scoreColor = n => n>=70?"var(--good)": n>=50?"var(--ok)": n>=35?"var(--warn)":"var(--bad)";
-const verdictOf = n => n>=70?"Solid choice": n>=50?"Mixed record": n>=35?"Poor record":"Serious concerns";
+const scoreColor = n => n==null ? "var(--dim)"
+  : n>=70?"var(--good)": n>=50?"var(--ok)": n>=35?"var(--warn)":"var(--bad)";
+const verdictOf = n => n==null ? "Not enough data"
+  : n>=70?"Solid choice": n>=50?"Mixed record": n>=35?"Poor record":"Serious concerns";
 
 function toast(msg){
   const t=$("#toast"); t.textContent=msg; t.classList.add("on");
@@ -714,7 +716,8 @@ document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>go(b.dataset.g
    Firefox don't ship it, so those fall back to ZXing compiled to WebAssembly —
    which is what makes this work on an iPhone. */
 const ZXING_URL = "https://cdn.jsdelivr.net/npm/zxing-wasm@2/+esm";
-const FORMATS = ["EAN-13","EAN-8","UPC-A","UPC-E","Code128","Code39","ITF"];
+const FORMATS = ["EAN-13","EAN-8","UPC-A","UPC-E","Code128","Code39","Code93","Codabar",
+                 "ITF","DataBar","DataBarExpanded","QRCode","DataMatrix","Aztec","PDF417"];
 
 let stream=null, detector=null, detectTimer=null, camOn=false;
 let engine=null;        // "native" | "wasm"
@@ -780,7 +783,7 @@ async function startCamera(){
   if("BarcodeDetector" in window){
     try{
       const supported = await window.BarcodeDetector.getSupportedFormats();
-      const want = supported.filter(f=>/ean_13|ean_8|upc_a|upc_e|code_128|code_39|itf/.test(f));
+      const want = supported.filter(f=>!/unknown/.test(f));
       detector = new window.BarcodeDetector(want.length?{formats:want}:undefined);
       engine="native";
     }catch(e){ detector=null; }
@@ -886,11 +889,150 @@ $("#demoRow").onclick = e=>{
   const b=e.target.closest("[data-code]"); if(b) lookup(b.dataset.code);
 };
 
-/* A real barcode resolves against the demo database, or honestly reports a miss. */
-function lookup(code){
+/* ---------- live product data (Open Food Facts) ----------
+   Real, open database of ~3M food, drink and cosmetics products, keyed by
+   barcode. Where a product has been through Agribalyse it also carries a real
+   per-stage carbon breakdown, which is what feeds the X-Ray for live results.
+   No API key, CORS-enabled, free. It has no labour data — nobody does — so
+   that tab says so plainly rather than inventing findings. */
+const OFF_HOSTS = [
+  "https://world.openfoodfacts.org",
+  "https://world.openbeautyfacts.org",
+  "https://world.openproductsfacts.org"
+];
+const OFF_FIELDS = ["product_name","brands","quantity","image_front_small_url","ecoscore_grade",
+  "ecoscore_score","nutriscore_grade","categories_tags","labels_tags","origins","countries",
+  "manufacturing_places","packaging","ecoscore_data"].join(",");
+
+/* Real kg CO₂e per kg → a 0-100 bar. Log scale, because footprints span
+   0.1 (vegetables) to 60 (beef) and a linear bar would flatten everything. */
+const carbonScore = co2 => Math.max(0, Math.min(100, Math.round(100 - 30*Math.log10(co2*10+1))));
+const GRADE_TEXT = {a:"Low impact for its category", b:"Below-average impact",
+  c:"Average impact", d:"Above-average impact", e:"High impact for its category"};
+
+function pickEmoji(tags){
+  const t=(tags||[]).join(" ");
+  if(/beverage|drink|water|soda|juice/.test(t)) return "🥤";
+  if(/coffee|tea/.test(t)) return "☕";
+  if(/dairy|milk|cheese|yogurt/.test(t)) return "🥛";
+  if(/meat|beef|pork|chicken|poultry/.test(t)) return "🥩";
+  if(/fish|seafood/.test(t)) return "🐟";
+  if(/fruit|vegetable|legume/.test(t)) return "🥬";
+  if(/bread|cereal|pasta|rice|biscuit|cookie/.test(t)) return "🍞";
+  if(/chocolate|candy|sweet|snack|confection/.test(t)) return "🍫";
+  if(/cosmetic|beauty|shampoo|soap|hygiene/.test(t)) return "🧴";
+  return "🛒";
+}
+
+async function fetchLive(code){
+  for(const host of OFF_HOSTS){
+    try{
+      const r = await fetch(`${host}/api/v2/product/${encodeURIComponent(code)}.json?fields=${OFF_FIELDS}`);
+      if(!r.ok) continue;
+      const j = await r.json();
+      if(j && j.status===1 && j.product && (j.product.product_name||j.product.brands)) return j.product;
+    }catch(e){ /* try the next database */ }
+  }
+  return null;
+}
+
+/* Turn an Open Food Facts record into the same shape the demo products use,
+   so the report, compare and history screens all work unchanged. */
+function buildFromOFF(code, p){
+  const ag  = (p.ecoscore_data && p.ecoscore_data.agribalyse) || {};
+  const co2 = typeof ag.co2_total==="number" ? ag.co2_total : null;
+  const eco = typeof p.ecoscore_score==="number" ? p.ecoscore_score : null;
+  const grade = (p.ecoscore_grade||"").toLowerCase();
+
+  const metrics = [
+    {k:"Eco-Score", v:eco,
+     note: eco!=null ? (GRADE_TEXT[grade]||"Open Food Facts Eco-Score") : "No Eco-Score published for this product"},
+    {k:"Carbon", v: co2!=null ? carbonScore(co2) : null,
+     note: co2!=null ? co2.toFixed(2)+" kg CO₂e per kg (Agribalyse)" : "No life-cycle carbon data for this product"},
+    {k:"Labor", v:null, note:"No public labour dataset covers individual products"},
+    {k:"Circularity", v:null, note: p.packaging ? "Packaging declared: "+p.packaging : "No packaging data"}
+  ];
+
+  const stages = [
+    ["🌱","Agriculture", ag.co2_agriculture],
+    ["🏭","Processing",  ag.co2_processing],
+    ["🚚","Transport",   ag.co2_transportation],
+    ["📦","Packaging",   ag.co2_packaging],
+    ["🏬","Distribution",ag.co2_distribution],
+    ["🏠","Use & disposal", ag.co2_consumption]
+  ].filter(s=>typeof s[2]==="number" && s[2]>0);
+
+  const chain = stages.map(s=>({
+    icon:s[0], stage:s[1],
+    loc: co2 ? Math.round(s[2]/co2*100)+"% of this product's footprint" : "",
+    who: "Category average from <b>Agribalyse</b>, the French public life-cycle database",
+    tags:[{t:s[2].toFixed(2)+" kg CO₂e", c:"co2"}]
+  }));
+
+  const declared=[];
+  if(p.origins) declared.push({t:"Origin: "+p.origins, c:""});
+  if(p.manufacturing_places) declared.push({t:"Made in: "+p.manufacturing_places, c:""});
+  if(p.countries) declared.push({t:"Sold in: "+String(p.countries).split(",").slice(0,3).join(", "), c:""});
+  (p.labels_tags||[]).slice(0,4).forEach(l=>declared.push({t:l.replace(/^[a-z]{2}:/,"").replace(/-/g," "), c:""}));
+  chain.push({
+    icon:"🏷️", stage:"What the brand declares",
+    loc: declared.length ? "Self-reported, not independently verified" : "Nothing declared",
+    who: declared.length ? "Taken from the product label and Open Food Facts contributors"
+                         : "This brand publishes no origin or certification data at all",
+    tags: declared.length ? declared : [{t:"No disclosure", c:"flag"}]
+  });
+
+  const alert = eco==null
+    ? {sev:"med", emoji:"❓", title:"Not enough data to score this product",
+       text:"Open Food Facts knows this product but has no Eco-Score for it. That usually means nobody has submitted enough ingredient and packaging detail yet — you can add it yourself on openfoodfacts.org."}
+    : eco>=60
+      ? {sev:"low", emoji:"✅", title:"Eco-Score "+(grade||"").toUpperCase()+" — "+(GRADE_TEXT[grade]||""),
+         text:"Scored against other products in the same category using Agribalyse life-cycle data, then adjusted for packaging, origin and certifications."}
+      : {sev: eco>=40?"med":"high", emoji:"⚠️", title:"Eco-Score "+(grade||"").toUpperCase()+" — "+(GRADE_TEXT[grade]||""),
+         text:"Scored against other products in the same category. The stage breakdown below shows where the footprint actually comes from."};
+
+  return {
+    live:true, code,
+    emoji: pickEmoji(p.categories_tags),
+    img: p.image_front_small_url || null,
+    name: p.product_name || "Unnamed product",
+    brand: (p.brands||"Unknown brand").split(",")[0].trim(),
+    price: p.quantity || "",
+    cat: ((p.categories_tags||[])[0]||"").replace(/^[a-z]{2}:/,"").replace(/-/g," ") || "Uncategorised",
+    co2: co2!=null ? co2 : "—", co2u:"kg CO₂e per kg", tiers:[declared.length?1:0, 2],
+    score: eco,
+    metrics, chain, alert,
+    labor:[{sev:"med", where:"Every product", title:"No labour data exists for individual products",
+      text:"There is no public database mapping a barcode to the working conditions behind it. Certifications like Fairtrade appear above when a brand declares them, but absence of a flag is not evidence of good practice.",
+      src:"Open Food Facts carries environmental data only"}],
+    alts:[]
+  };
+}
+
+/* A barcode resolves against the curated demo set first, then the live
+   database, then honestly reports a miss. */
+async function lookup(code){
   if(camOn) stopCamera();
-  if(DB[code]) showResult(code);
-  else showNoRecord(code);
+  if(DB[code]){ showResult(code); return; }
+
+  showLoading(code);
+  const p = await fetchLive(code);
+  if(!p){ showNoRecord(code); return; }
+  DB[code] = buildFromOFF(code, p);   // runtime only, never saved to disk
+  showResult(code);
+}
+
+function showLoading(code){
+  currentCode=null;
+  $("#resultScroll").innerHTML = `
+    <div class="norec">
+      <div class="ne">🔎</div>
+      <h3>Looking this up…</h3>
+      <div class="code">${esc(code)}</div>
+      <p style="text-align:center">Checking Open Food Facts for a real record.</p>
+    </div>`;
+  go("s-result");
+  $("#resultScroll").scrollTop=0;
 }
 
 function showNoRecord(code){
@@ -900,12 +1042,11 @@ function showNoRecord(code){
       <div class="ne">🔍</div>
       <h3>No record for this barcode</h3>
       <div class="code">${esc(code)}</div>
-      <p>The barcode decoded fine — EcoTrace just has no supply-chain data behind it. This prototype ships
-      with ${Object.keys(DB).length} products in its database, so almost every real product you point the camera
-      at will land here.</p>
-      <p>A production build would fall back to a partial answer: brand-level averages, the category's typical
-      footprint, and whatever the brand publishes about its suppliers — labelled clearly as an estimate rather
-      than a trace.</p>
+      <p>The barcode decoded fine, and EcoTrace checked Open Food Facts, Open Beauty Facts and Open Products
+      Facts — none of them has this item. That is normal for clothing, electronics, furniture and anything
+      sold outside Europe, since those open databases mostly cover food, drink and cosmetics.</p>
+      <p>If it is a grocery product, you can add it yourself at <b>openfoodfacts.org</b> — the database is
+      built by volunteers, and once it is in there this app will find it.</p>
     </div>
     <button class="swap" id="noRecDemo">Browse the demo products instead</button>
     <div class="disc"><b>Prototype.</b> The demo database is invented data about fictional brands.</div>`;
@@ -927,8 +1068,8 @@ function showResult(code){
 
   const metrics = p.metrics.map(m=>`
     <div>
-      <div class="mbar-top"><span>${esc(m.k)}</span><span>${m.v}</span></div>
-      <div class="track"><i data-w="${m.v}" style="background:${scoreColor(m.v)}"></i></div>
+      <div class="mbar-top"><span>${esc(m.k)}</span><span>${m.v==null?"no data":m.v}</span></div>
+      <div class="track"><i data-w="${m.v==null?0:m.v}" style="background:${scoreColor(m.v)}"></i></div>
       <div class="mbar-note">${esc(m.note)}</div>
     </div>`).join("");
 
@@ -967,11 +1108,11 @@ function showResult(code){
 
   $("#resultScroll").innerHTML = `
     <div class="prod-head">
-      <div class="prod-emoji">${p.emoji}</div>
+      <div class="prod-emoji">${ p.img ? `<img src="${esc(p.img)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:15px">` : p.emoji }</div>
       <div>
         <div class="prod-name">${esc(p.name)}</div>
-        <div class="prod-brand">${esc(p.brand)} · ${esc(p.price)}</div>
-        <div class="prod-code">${esc(code)}</div>
+        <div class="prod-brand">${esc(p.brand)}${p.price?" · "+esc(p.price):""}</div>
+        <div class="prod-code">${esc(code)}${p.live?" · LIVE DATA":""}</div>
       </div>
     </div>
 
@@ -983,11 +1124,13 @@ function showResult(code){
             stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}"
             style="transition:stroke-dashoffset 1s cubic-bezier(.3,1,.4,1)"/>
         </svg>
-        <div class="val"><div class="num" style="color:${col}">${p.score}</div><div class="of">OF 100</div></div>
+        <div class="val"><div class="num" style="color:${col}">${p.score==null?"?":p.score}</div><div class="of">OF 100</div></div>
       </div>
       <div>
         <div class="verdict" style="color:${col}">${verdictOf(p.score)}</div>
-        <div class="verdict-sub">Nature and human cost, combined across every stage we can see.</div>
+        <div class="verdict-sub">${ p.live
+          ? "Eco-Score from Open Food Facts. Labour data is not published for any product — see the Labor tab."
+          : "Nature and human cost, combined across every stage we can see." }</div>
       </div>
     </div>
 
@@ -1008,17 +1151,20 @@ function showResult(code){
     <div class="pane" id="pane-labor">${labor}</div>
     <div class="pane" id="pane-alts">${alts}</div>
 
-    <div class="disc">
-      <b>Prototype.</b> Every supply-chain record, score and brand on this screen is invented for the demo —
-      the brands are fictional and none of it describes a real company. A real EcoTrace would resolve the GTIN
-      against published supplier lists, life-cycle inventories and labor-enforcement registries, and would show
-      its sources and confidence per stage.
+    <div class="disc">${ p.live
+      ? `<b>Live data.</b> Name, brand, photo and Eco-Score come from Open Food Facts, an open database
+         maintained by volunteers. The per-stage carbon figures come from Agribalyse and are category
+         averages, not measurements of this exact item. Nothing here is invented — but nothing here is
+         audited either, and the labour tab is empty because that data does not exist publicly.`
+      : `<b>Demo record.</b> Every supply-chain record, score and brand on this screen is invented, and the
+         brands are fictional. It shows what a full trace could look like if the data existed. Scan a real
+         grocery barcode to see genuine data instead.` }
     </div>`;
 
   // animate
   requestAnimationFrame(()=>{
     const arc=$("#ringArc");
-    if(arc) arc.style.strokeDashoffset = C*(1-p.score/100);
+    if(arc) arc.style.strokeDashoffset = C*(1-(p.score==null?0:p.score)/100);
     document.querySelectorAll("#resultScroll .track i").forEach(i=>i.style.width=i.dataset.w+"%");
   });
 
@@ -1071,8 +1217,13 @@ $("#toCompare").onclick = ()=>{
 let cmp=[null,null];
 const flagsIn = p => p.chain.reduce((n,s)=>n+s.tags.filter(t=>t.c==="flag").length,0);
 
-function fillSlot(slot, code){
-  if(!DB[code]){ toast("No record for "+code+" — pick a demo product"); go("s-compare"); renderCompare(); return; }
+async function fillSlot(slot, code){
+  if(!DB[code]){
+    toast("Looking up "+code+"…");
+    const p = await fetchLive(code);
+    if(p) DB[code] = buildFromOFF(code, p);
+  }
+  if(!DB[code]){ toast("No record found for "+code); go("s-compare"); renderCompare(); return; }
   cmp[slot]=code;
   go("s-compare");
   renderCompare();
@@ -1236,7 +1387,8 @@ function renderHistory(){
       History is stored only in this browser.
     </div>`;
 
-  $("#historyScroll").querySelectorAll("[data-code]").forEach(b=>b.onclick=()=>showResult(b.dataset.code));
+  // live products aren't kept on disk, so re-resolve rather than assuming they're in memory
+  $("#historyScroll").querySelectorAll("[data-code]").forEach(b=>b.onclick=()=>lookup(b.dataset.code));
 }
 
 $("#clearBtn").onclick = ()=>{
