@@ -986,7 +986,7 @@ function camMsg(msg, isErr){
   el.textContent=msg;
   el.classList.toggle("err", !!isErr);
 }
-const APP_VERSION = "v11";
+const APP_VERSION = "v12";
 function engineMsg(){
   const d = engine==="native" ? "native BarcodeDetector" : engine==="wasm" ? "ZXing (WebAssembly)" : "none";
   $("#engine").textContent = APP_VERSION+" · Decoder: "+d+(zx?" · ready":"");
@@ -2007,11 +2007,20 @@ if(location.protocol==="https:"){
     window.addEventListener("load", ()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
   }
 }
-setTimeout(()=>loadPack().then(p=>{
-  const n = p ? Object.keys(p).length : 0;
-  if(n) $("#engine").textContent = APP_VERSION+" · "+n.toLocaleString()+" products offline · "+
-    ($("#engine").textContent.split("· ").pop()||"");
-}), 1200);
+// The pack is several MB now, so fetch it well after first paint and only when
+// the connection isn't metered or crawling.
+(function warmPack(){
+  const c = navigator.connection || {};
+  if(c.saveData) return;
+  if(/2g/.test(c.effectiveType||"")) return;
+  const start = ()=>loadPack().then(p=>{
+    const n = p ? Object.keys(p).length : 0;
+    if(n) $("#engine").textContent =
+      APP_VERSION+" · "+n.toLocaleString()+" offline · "+(engine==="native"?"native decoder":"ZXing decoder");
+  });
+  if("requestIdleCallback" in window) requestIdleCallback(start,{timeout:4000});
+  else setTimeout(start,2500);
+})();
 
 // show which decoder this browser will use, before the camera is even opened
 engine = ("BarcodeDetector" in window) ? "native" : "wasm";

@@ -7,8 +7,10 @@
  *     rarely change, and are exactly what you need when the signal dies.
  */
 
-const CACHE = "ecotrace-v11";
-const SHELL = ["/", "/ecotrace.html", "/pack.json", "/icon-180.png", "/icon-512.png", "/manifest.json"];
+const CACHE = "ecotrace-v12";
+// pack.json is deliberately absent: it is several MB, and precaching it would
+// stall the install. The cache-first rule below stores it after its first fetch.
+const SHELL = ["/", "/ecotrace.html", "/icon-180.png", "/icon-512.png", "/manifest.json"];
 
 self.addEventListener("install", e => {
   e.waitUntil(
