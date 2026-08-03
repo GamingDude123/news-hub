@@ -285,6 +285,140 @@ body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;back
   color:#c7f7da;font-size:.88rem;font-weight:800;padding:14px 16px;border-radius:16px;text-align:center;
   opacity:0;transform:translateY(12px);transition:.3s;pointer-events:none}
 .toast.on{opacity:1;transform:none}
+
+/* ============================================================
+   VISUAL REFRESH
+   Depth comes from translucent white layers over one background
+   rather than flat grey fills, so every surface shares a light
+   source. Score colour drives the page, not just the ring.
+   ============================================================ */
+:root{
+  --text:#f2f8f4;--muted:#a4b8ae;--dim:#75897f;
+  --bg:#060f0c;
+  --s1:rgba(255,255,255,.055);--s2:rgba(255,255,255,.085);
+  --line:rgba(255,255,255,.10);
+  --r:22px;
+}
+body{background:#030806}
+.phone{background:var(--bg)}
+.phone::before{
+  background:
+    radial-gradient(90% 45% at 8% -8%, rgba(61,220,132,.16), transparent 62%),
+    radial-gradient(85% 45% at 100% 104%, rgba(52,226,196,.13), transparent 60%),
+    radial-gradient(120% 70% at 50% 40%, rgba(255,255,255,.018), transparent 70%)}
+
+/* one card recipe, used everywhere */
+.ring-wrap,.stat,.lcard,.alt,.hrow,.ctable,.gap,.cbanner,.demo-chip,.slot,.alert,.manual input{
+  background:linear-gradient(180deg,var(--s1),rgba(255,255,255,.022));
+  border:1px solid var(--line);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.055), 0 6px 20px rgba(0,0,0,.28);
+  border-radius:var(--r)}
+.alert{border-radius:20px}
+.hrow,.manual input{border-radius:16px}
+.demo-chip{border-radius:18px}
+
+/* header + type */
+.bar{padding:calc(12px + env(safe-area-inset-top)) 18px 8px}
+.logo{font-size:1.22rem;letter-spacing:-.8px}
+.logo .mark{width:30px;height:30px;border-radius:10px;font-size:1rem;
+  box-shadow:0 5px 16px rgba(61,220,132,.36)}
+.pts{background:rgba(61,220,132,.13);border-color:rgba(61,220,132,.32);color:#a9f5cb;
+  padding:7px 13px;font-size:.79rem}
+.iconbtn{border-radius:13px;background:var(--s1);border-color:var(--line)}
+.iconbtn:active{background:var(--s2)}
+
+.prod-name{font-size:1.42rem;letter-spacing:-.85px;line-height:1.12}
+.prod-emoji{width:64px;height:64px;border-radius:19px;background:var(--s2);border-color:var(--line)}
+.prod-brand{font-size:.88rem;color:var(--muted)}
+.prod-code{letter-spacing:1.9px;font-size:.66rem}
+
+/* score hero — the most important number on the page, sized like it */
+.ring-wrap{padding:20px 18px;gap:16px;position:relative;overflow:hidden;align-items:center}
+.ring-wrap::after{content:'';position:absolute;left:-46px;top:-70px;width:210px;height:210px;pointer-events:none;
+  background:radial-gradient(circle,color-mix(in srgb,var(--glow,transparent) 26%,transparent) 0%,transparent 70%)}
+.ring{width:106px;height:106px}
+.ring svg{width:106px;height:106px}
+.ring .num{font-size:2.3rem;letter-spacing:-2.2px}
+.ring .of{font-size:.56rem;letter-spacing:1.7px;color:var(--dim)}
+.verdict{font-size:1.06rem;letter-spacing:-.45px;line-height:1.2;text-wrap:balance}
+.verdict-sub{font-size:.81rem;line-height:1.48;color:var(--muted);margin-top:7px}
+
+/* metric bars */
+.bars-list{gap:16px;margin-top:18px}
+.mbar-top{font-size:.85rem}
+.mbar-top span:last-child{font-variant-numeric:tabular-nums;font-size:.9rem;color:var(--text)}
+.track{height:9px;border-radius:9px;background:rgba(255,255,255,.075);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+.track i{box-shadow:0 0 12px -1px currentColor}
+.mbar-note{font-size:.78rem;color:var(--dim);margin-top:6px}
+
+/* tabs */
+.tabs{background:rgba(255,255,255,.05);border-color:var(--line);border-radius:17px;padding:5px;gap:4px}
+.tab{border-radius:13px;font-size:.87rem;padding:11px 4px;transition:.18s}
+.tab.on{background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.09));
+  color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+
+/* timeline */
+.stage .dot{width:36px;height:36px;border-radius:13px;background:var(--s2);border-color:var(--line);font-size:1.02rem}
+.stage{padding-left:48px;padding-bottom:22px}
+.stage::before{left:17px;top:40px}
+.stage h5{font-size:1.02rem;letter-spacing:-.35px}
+.stage .who{color:#cbdcd4;line-height:1.5}
+.tag{padding:6px 11px;border-radius:10px;font-size:.73rem;background:rgba(255,255,255,.06)}
+.tag.co2{background:rgba(61,220,132,.12);border-color:rgba(61,220,132,.28)}
+.tag.flag{background:rgba(255,84,112,.13);border-color:rgba(255,84,112,.3)}
+.tag.warn{background:rgba(255,159,67,.13);border-color:rgba(255,159,67,.3)}
+
+/* lists */
+.lcard{padding:17px}
+.lcard h5{font-size:1rem;letter-spacing:-.3px}
+.lcard p{color:#c6d8d0;line-height:1.55}
+.pill{border-radius:8px;letter-spacing:.9px}
+.alt{padding:15px;gap:14px}
+.alt .ae{width:48px;height:48px;border-radius:15px;background:var(--s2)}
+.stat{padding:17px 16px}
+.stat b{font-size:1.95rem;letter-spacing:-1.6px}
+.stat span{font-size:.71rem;letter-spacing:.7px;color:var(--dim)}
+.sec-title{color:var(--dim);letter-spacing:2.2px}
+
+/* buttons */
+.scan-btn,.swap,.crow2 button.primary,.sheet .cam-opt{
+  box-shadow:0 8px 24px -6px rgba(61,220,132,.5);letter-spacing:-.2px}
+.scan-btn{border-radius:19px;padding:18px;font-size:1.06rem}
+.alt-row button{background:var(--s1);border-color:var(--line);border-radius:16px}
+.alt-row button:active{background:var(--s2)}
+
+/* viewfinder */
+.viewfinder{border-radius:28px;border-color:var(--line);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 14px 40px rgba(0,0,0,.4)}
+.viewfinder::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:28px;
+  box-shadow:inset 0 0 70px rgba(0,0,0,.5)}
+.vf-status{font-size:.84rem}
+.engine{color:var(--dim);font-size:.68rem}
+
+/* bottom nav */
+.nav{padding:10px 16px calc(15px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent,rgba(6,15,12,.92) 42%);backdrop-filter:blur(16px) saturate(1.3)}
+.nav button{gap:5px;font-size:.68rem;letter-spacing:.4px;border-radius:14px;padding:7px 0 5px;transition:.18s}
+.nav button .ni{font-size:1.22rem}
+.nav button.on{background:rgba(61,220,132,.1)}
+
+/* compare */
+.slot{border-radius:20px;min-height:142px}
+.slot .ss{font-size:2.1rem;letter-spacing:-1.7px}
+.vs{background:var(--s2);border-color:var(--line);font-size:.68rem}
+.winner{border-color:rgba(61,220,132,.4)!important;
+  background:linear-gradient(180deg,rgba(61,220,132,.13),rgba(61,220,132,.05))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 8px 26px -8px rgba(61,220,132,.45)!important}
+.cbanner{padding:17px}
+.cbanner h4{font-size:1.05rem;letter-spacing:-.4px}
+.ctr{padding:14px}
+.cbars .half{height:9px;background:rgba(255,255,255,.075)}
+.gap{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.03))}
+
+.disc{color:var(--dim);border-top-color:var(--line);font-size:.73rem;line-height:1.6}
+.empty{color:var(--dim)}
+.sheet .panel{background:#0a1512;border-radius:28px 28px 0 0}
 </style>
 </head>
 <body>
@@ -732,7 +866,7 @@ function camMsg(msg, isErr){
   el.textContent=msg;
   el.classList.toggle("err", !!isErr);
 }
-const APP_VERSION = "v7";
+const APP_VERSION = "v8";
 function engineMsg(){
   const d = engine==="native" ? "native BarcodeDetector" : engine==="wasm" ? "ZXing (WebAssembly)" : "none";
   $("#engine").textContent = APP_VERSION+" · Decoder: "+d+(zx?" · ready":"");
@@ -1086,6 +1220,59 @@ function buildFromOFF(code, p){
   };
 }
 
+/* ---------- offline pack ----------
+   The most-scanned products from Open Food Facts, shipped with the app so
+   common groceries resolve with no network round trip — which matters, since
+   supermarkets are exactly where phone signal dies. Anything not in here
+   still falls through to the live lookup. */
+let PACK=null, packLoading=null;
+
+function loadPack(){
+  if(PACK) return Promise.resolve(PACK);
+  if(!packLoading){
+    packLoading = fetch("pack.json")
+      .then(r=>r.ok?r.json():null)
+      .then(j=>(PACK=j||{}))
+      .catch(()=>(PACK={}));
+  }
+  return packLoading;
+}
+
+function buildFromPack(code, row){
+  const [name, brand, score, grade, co2] = row;
+  return {
+    live:true, packed:true, code,
+    emoji:"🛒", img:null,
+    name: name || "Unnamed product",
+    brand: brand || "Unknown brand",
+    price:"",
+    cat:"Grocery",
+    co2: co2!=null ? co2 : "—", co2u:"kg CO₂e per kg", tiers:[0,2],
+    score: typeof score==="number" ? Math.round(score) : null,
+    metrics:[
+      {k:"Eco-Score", v: typeof score==="number"?Math.round(score):null,
+       note: grade ? (GRADE_TEXT[grade]||"Open Food Facts Eco-Score") : "No Eco-Score published"},
+      {k:"Carbon", v: co2!=null ? carbonScore(co2) : null,
+       note: co2!=null ? co2.toFixed(2)+" kg CO₂e per kg (Agribalyse)" : "No life-cycle carbon data"},
+      {k:"Labor", v:null, note:"No public labour dataset covers individual products"},
+      {k:"Circularity", v:null, note:"Not in the offline pack — connect to load full detail"}
+    ],
+    alert: typeof score==="number"
+      ? {sev: score>=60?"low":score>=40?"med":"high", emoji: score>=60?"✅":"⚠️",
+         title:"Eco-Score "+(grade||"").toUpperCase()+" — "+(GRADE_TEXT[grade]||"scored against its category"),
+         text:"Loaded from the offline pack, so this worked without a network connection. Reconnect for the full stage-by-stage breakdown."}
+      : {sev:"med", emoji:"❓", title:"Known product, no Eco-Score",
+         text:"This product is in the database but nobody has submitted enough detail to score it."},
+    chain:[{icon:"📦", stage:"Offline record", loc:"From the bundled pack",
+      who:"The full supply-chain breakdown needs a connection",
+      tags: co2!=null ? [{t:co2.toFixed(2)+" kg CO₂e per kg", c:"co2"}] : [{t:"No carbon data", c:"warn"}]}],
+    labor:[{sev:"med", where:"Unknown", title:"No labour data exists for this product",
+      text:"No public dataset connects a barcode to working conditions. This is true of every product, not just this one.",
+      src:"Open Food Facts carries environmental data only"}],
+    alts:[]
+  };
+}
+
 /* Second-tier lookup, via our own serverless function. Identifies products
    Open Food Facts has never heard of — electronics, tools, household goods —
    but carries no environmental data, so the report says so rather than
@@ -1151,19 +1338,33 @@ async function lookup(code){
 
   showLoading(code);
 
-  const p = await fetchLive(code);
-  if(p){
-    DB[code] = buildFromOFF(code, p);        // runtime only, never saved to disk
+  // Online, the live record is richer (photo, per-stage carbon), so try it first.
+  if(navigator.onLine !== false){
+    const p = await fetchLive(code);
+    if(p){
+      DB[code] = buildFromOFF(code, p);      // runtime only, never saved to disk
+      showResult(code);
+      return;
+    }
+  }
+
+  // Offline, or the live database was down or had no record: use the pack.
+  setLoadingNote("Checking the offline pack…");
+  const pack = await loadPack();
+  if(pack && pack[code]){
+    DB[code] = buildFromPack(code, pack[code]);
     showResult(code);
     return;
   }
 
-  setLoadingNote("Not in the food databases — checking product catalogues…");
-  const d = await fetchFallback(code);
-  if(d){
-    DB[code] = buildFromFallback(code, d);
-    showResult(code);
-    return;
+  if(navigator.onLine !== false){
+    setLoadingNote("Not in the food databases — checking product catalogues…");
+    const d = await fetchFallback(code);
+    if(d){
+      DB[code] = buildFromFallback(code, d);
+      showResult(code);
+      return;
+    }
   }
 
   showNoRecord(code);
@@ -1275,9 +1476,9 @@ function showResult(code){
       </div>
     </div>
 
-    <div class="ring-wrap">
+    <div class="ring-wrap" style="--glow:${col}">
       <div class="ring">
-        <svg width="112" height="112">
+        <svg width="112" height="112" viewBox="0 0 112 112">
           <circle cx="56" cy="56" r="${R}" fill="none" stroke="#ffffff14" stroke-width="9"/>
           <circle id="ringArc" cx="56" cy="56" r="${R}" fill="none" stroke="${col}" stroke-width="9"
             stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}"
@@ -1560,6 +1761,20 @@ $("#clearBtn").onclick = ()=>{
 };
 
 paintPts();
+
+// Warm the offline pack so the first scan is instant, and register the worker
+// that makes the app usable with no signal. Both are best-effort.
+if(location.protocol==="https:"){
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", ()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+  }
+}
+setTimeout(()=>loadPack().then(p=>{
+  const n = p ? Object.keys(p).length : 0;
+  if(n) $("#engine").textContent = APP_VERSION+" · "+n.toLocaleString()+" products offline · "+
+    ($("#engine").textContent.split("· ").pop()||"");
+}), 1200);
+
 // show which decoder this browser will use, before the camera is even opened
 engine = ("BarcodeDetector" in window) ? "native" : "wasm";
 engineMsg();
