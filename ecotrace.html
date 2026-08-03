@@ -10,7 +10,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="EcoTrace">
 <meta name="theme-color" content="#050d0a">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23050d0a'/%3E%3Ccircle cx='90' cy='90' r='46' fill='none' stroke='%233ddc84' stroke-width='13'/%3E%3Ccircle cx='90' cy='90' r='19' fill='%2334e2c4'/%3E%3C/svg%3E">
+<!-- real PNGs: iOS ignores an SVG data-URI here and falls back to a screenshot -->
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+<link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -419,6 +422,66 @@ body{background:#030806}
 .disc{color:var(--dim);border-top-color:var(--line);font-size:.73rem;line-height:1.6}
 .empty{color:var(--dim)}
 .sheet .panel{background:#0a1512;border-radius:28px 28px 0 0}
+
+/* ============================================================
+   BOLD PASS — the score is the product, so it gets the hero
+   treatment: full-bleed tinted banner, oversized numerals, and
+   a floating nav so content runs edge to edge behind it.
+   ============================================================ */
+.scroll{padding:0 20px 128px}
+
+/* full-bleed hero, tinted by the result */
+.ring-wrap{
+  margin:20px -20px 0;border-radius:0;border-left:0;border-right:0;
+  padding:26px 20px 28px;gap:20px;
+  background:
+    radial-gradient(120% 130% at 12% 0%, color-mix(in srgb,var(--glow) 30%,transparent), transparent 68%),
+    linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.015));
+  border-top:1px solid color-mix(in srgb,var(--glow) 34%,transparent);
+  border-bottom:1px solid var(--line);
+  box-shadow:none}
+.ring-wrap::after{display:none}
+.ring{width:122px;height:122px;filter:drop-shadow(0 6px 22px color-mix(in srgb,var(--glow) 45%,transparent))}
+.ring svg{width:122px;height:122px}
+.ring .num{font-size:3rem;letter-spacing:-3px;font-variant-numeric:tabular-nums}
+.verdict{font-size:1.3rem;letter-spacing:-.7px}
+.verdict-sub{font-size:.83rem}
+
+/* product header */
+.prod-head{margin-top:12px;gap:15px}
+.prod-name{font-size:1.5rem;letter-spacing:-1px}
+
+/* metrics become rows with a leading rail */
+.bars-list{margin-top:22px;gap:0}
+.bars-list > div{padding:15px 0;border-bottom:1px solid var(--line)}
+.bars-list > div:last-child{border-bottom:0}
+.mbar-top span:last-child{font-size:1.15rem;font-weight:900;letter-spacing:-.6px}
+.track{height:6px;margin-top:9px}
+
+/* floating nav */
+.nav{left:14px;right:14px;bottom:calc(12px + env(safe-area-inset-bottom));
+  padding:7px;border-radius:24px;background:rgba(10,22,17,.82);
+  border:1px solid var(--line);backdrop-filter:blur(22px) saturate(1.4);
+  box-shadow:0 12px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07)}
+.nav button{border-radius:18px;padding:9px 0 7px}
+.nav button.on{background:linear-gradient(180deg,rgba(61,220,132,.2),rgba(61,220,132,.08));
+  color:#8df0bb;box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+
+/* scan screen */
+.scan-wrap{padding:0 20px 118px}
+.viewfinder{border-radius:30px}
+.viewfinder::after{border-radius:30px}
+.scan-btn{border-radius:21px;font-size:1.08rem;letter-spacing:-.3px}
+.demo-chip{padding:12px 15px}
+.hint{letter-spacing:2.4px;color:var(--dim)}
+
+/* tabs get more presence */
+.tabs{margin-top:24px;padding:6px;border-radius:19px}
+.tab{padding:12px 4px;font-size:.88rem}
+
+.alert{margin-top:20px;padding:17px;gap:13px}
+.alert h4{font-size:1rem;letter-spacing:-.3px}
+.alert p{line-height:1.55}
 </style>
 </head>
 <body>
@@ -866,7 +929,7 @@ function camMsg(msg, isErr){
   el.textContent=msg;
   el.classList.toggle("err", !!isErr);
 }
-const APP_VERSION = "v8";
+const APP_VERSION = "v9";
 function engineMsg(){
   const d = engine==="native" ? "native BarcodeDetector" : engine==="wasm" ? "ZXing (WebAssembly)" : "none";
   $("#engine").textContent = APP_VERSION+" · Decoder: "+d+(zx?" · ready":"");
@@ -1000,15 +1063,16 @@ function scanHint(){
   }
 }
 
-/* Pause, don't tear down. The stream stays open so the browser keeps treating
-   the permission as granted — stopping every track is what forces a fresh
-   prompt next time. The camera indicator stays lit while paused, which is the
-   honest trade: the camera really is still held. */
+/* Off means off. Only track.stop() clears the hardware indicator — merely
+   setting enabled=false keeps the camera powered and the light lit, which
+   reads as the app spying on you. Costs an extra permission prompt on some
+   browsers; being visibly off is worth more than that. */
 function stopCamera(){
   if(detectTimer){ clearInterval(detectTimer); detectTimer=null; }
-  if(stream) stream.getVideoTracks().forEach(t=>t.enabled=false);
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  const v=$("#cam"); if(v){ try{ v.pause(); }catch(e){} v.srcObject=null; }
   $("#viewfinder").classList.remove("live");
-  camOn=false; scanStart=0;
+  camOn=false; scanStart=0; detector=null;
   $("#scanBtn").textContent="Open camera";
   camMsg("Camera is off");
 }
@@ -1525,6 +1589,18 @@ function showResult(code){
   requestAnimationFrame(()=>{
     const arc=$("#ringArc");
     if(arc) arc.style.strokeDashoffset = C*(1-(p.score==null?0:p.score)/100);
+
+    // count the score up so it reads as a measurement, not a static label
+    const numEl = $("#resultScroll .ring .num");
+    if(numEl && p.score!=null){
+      const target=p.score, t0=performance.now(), dur=850;
+      const tick=now=>{
+        const k=Math.min(1,(now-t0)/dur);
+        numEl.textContent = Math.round(target*(1-Math.pow(1-k,3)));
+        if(k<1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
     document.querySelectorAll("#resultScroll .track i").forEach(i=>i.style.width=i.dataset.w+"%");
   });
 

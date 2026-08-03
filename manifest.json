@@ -1,0 +1,16 @@
+{
+  "name": "EcoTrace",
+  "short_name": "EcoTrace",
+  "description": "Scan a barcode to see the carbon and labour footprint behind a product.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#060f0c",
+  "theme_color": "#060f0c",
+  "icons": [
+    { "src": "/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
