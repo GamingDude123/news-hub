@@ -1503,9 +1503,13 @@ function buildFromPack(code, row){
    Open Food Facts has never heard of — electronics, tools, household goods —
    but carries no environmental data, so the report says so rather than
    guessing a score. */
+/* Inside the native app the origin is capacitor://localhost, where no
+   serverless function exists — so point at the deployed one explicitly. */
+const API_BASE = /^https?:$/.test(location.protocol) ? "" : "https://ecotrace-scan.netlify.app";
+
 async function fetchFallback(code){
   try{
-    const r = await fetch("/api/lookup?code="+encodeURIComponent(code));
+    const r = await fetch(API_BASE+"/api/lookup?code="+encodeURIComponent(code));
     if(!r.ok) return null;
     const j = await r.json();
     return j && j.found ? j : null;
