@@ -564,14 +564,14 @@ body{background:#030806}
       <button class="scan-btn" id="scanBtn">Open camera</button>
 
       <div class="alt-row">
-        <button id="photoBtn">🖼 Scan from a photo</button>
+        <button id="photoBtn">🖼 Photo · barcode or label</button>
       </div>
       <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
       <canvas id="frame" style="display:none"></canvas>
       <div class="engine" id="engine"></div>
 
       <div class="manual">
-        <input id="codeInput" inputmode="numeric" placeholder="or type a barcode (e.g. 4001724819400)">
+        <input id="codeInput" inputmode="numeric" placeholder="barcode, or type a product name">
         <button id="codeGo">Go</button>
       </div>
 
@@ -986,7 +986,7 @@ function camMsg(msg, isErr){
   el.textContent=msg;
   el.classList.toggle("err", !!isErr);
 }
-const APP_VERSION = "v10";
+const APP_VERSION = "v11";
 function engineMsg(){
   const d = engine==="native" ? "native BarcodeDetector" : engine==="wasm" ? "ZXing (WebAssembly)" : "none";
   $("#engine").textContent = APP_VERSION+" · Decoder: "+d+(zx?" · ready":"");
@@ -1177,10 +1177,24 @@ $("#photoInput").onchange = async e=>{
   try{
     const hits = await zx.readBarcodesFromImageFile(f, {formats:FORMATS, tryHarder:true, maxNumberOfSymbols:1});
     const code = hits && hits.length ? String(hits[0].text||"").trim() : "";
-    if(code) onDetected(code);
-    else camMsg("No barcode found in that photo. Get closer, hold the barcode level, and avoid glare.", true);
+    if(code){ onDetected(code); return; }
+  }catch(err){ /* fall through to reading the label instead */ }
+
+  // No barcode in the shot — read the packaging text and offer matches.
+  camMsg("No barcode in that photo — reading the label…");
+  try{
+    const {text, conf} = await ocrImage(f);
+    const q = queryFromText(text);
+    if(!q){
+      camMsg("Couldn't read any text on that photo. Try filling the frame with the front label.", true);
+      return;
+    }
+    camMsg("Searching for “"+q+"”…");
+    const list = await searchByName(q);
+    camMsg("Camera is off");
+    showCandidates(list, "Read “"+q+"” off the label ("+conf+"% confidence). Pick the one you are holding.");
   }catch(err){
-    camMsg("Couldn't read that image ("+(err.name||"error")+").", true);
+    camMsg("Couldn't read that photo. A barcode is far more reliable if you can find one.", true);
   }
 };
 
@@ -1200,6 +1214,15 @@ $("#codeGo").onclick = ()=>{
   if(!c) return;
   $("#codeInput").value="";
   const slot=pendingSlot; pendingSlot=null;
+
+  // Letters mean they typed a name, not a barcode.
+  if(/[a-z]/i.test(c)){
+    pendingSlot=slot;
+    showLoading(c);
+    setLoadingNote("Searching product names…");
+    searchByName(c).then(list=>showCandidates(list, "Matches for “"+c+"”. Pick the one you are holding."));
+    return;
+  }
   if(slot) fillSlot(slot, c); else lookup(c);
 };
 $("#codeInput").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#codeGo").click(); });
@@ -1340,6 +1363,86 @@ function buildFromOFF(code, p){
       src:"Open Food Facts carries environmental data only"}],
     alts:[]
   };
+}
+
+/* ---------- identify by photo / name ----------
+   A barcode is an exact key: one number, one product. A photo is a guess, and
+   a confident wrong guess is worse than no answer when the whole point is
+   footprint data. So the image path never picks a product by itself — it
+   narrows the field and a human confirms. */
+const OCR_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/+esm";
+const SEARCH_URL = "https://search.openfoodfacts.org/search";
+let ocrLib=null, ocrLoading=null;
+
+function loadOCR(){
+  if(ocrLib) return Promise.resolve(ocrLib);
+  if(!ocrLoading) ocrLoading = import(OCR_URL).then(m=>(ocrLib=m)).catch(e=>{ ocrLoading=null; throw e; });
+  return ocrLoading;
+}
+
+/* Packaging is noisy: weights, percentages, legal text. Keep the words that
+   actually name a product. */
+function queryFromText(raw){
+  const stop = new Set(["the","and","with","for","new","net","wt","oz","kg","ml","cl","fl","per",
+    "de","du","la","le","les","des","sans","avec","produit","product","ingredients","contains"]);
+  const words = String(raw||"")
+    .replace(/[^\p{L}\p{N}\s]/gu," ")
+    .split(/\s+/)
+    .map(w=>w.trim())
+    .filter(w=>w.length>=3 && w.length<=18)
+    .filter(w=>!/^\d+$/.test(w))
+    .filter(w=>!stop.has(w.toLowerCase()));
+  const seen=new Set(), out=[];
+  for(const w of words){
+    const k=w.toLowerCase();
+    if(seen.has(k)) continue;
+    seen.add(k); out.push(w);
+    if(out.length>=5) break;
+  }
+  return out.join(" ");
+}
+
+async function searchByName(q){
+  try{
+    const u = SEARCH_URL+"?q="+encodeURIComponent(q)+"&page_size=14"+
+      "&fields=code,product_name,brands,ecoscore_score,ecoscore_grade";
+    const r = await fetch(u);
+    if(!r.ok) return [];
+    const j = await r.json();
+    return (j.hits||[]).filter(h=>h.code && h.product_name);
+  }catch(e){ return []; }
+}
+
+async function ocrImage(file){
+  const T = await loadOCR();
+  const res = await T.recognize(file, "eng");
+  return { text: (res.data.text||"").replace(/\s+/g," ").trim(),
+           conf: Math.round(res.data.confidence||0) };
+}
+
+/* Candidate picker — the human is the final judge, by design. */
+function showCandidates(list, note){
+  currentCode=null;
+  $("#resultScroll").innerHTML = `
+    <div style="margin-top:10px">
+      <div class="sec-title" style="margin-top:6px">Best matches</div>
+      <p style="font-size:.85rem;color:var(--muted);font-weight:600;line-height:1.5;margin-bottom:14px">${esc(note)}</p>
+      ${ list.length ? list.map(h=>`
+        <button class="hrow" data-code="${esc(h.code)}">
+          <span class="he">🛒</span>
+          <span><span class="hn">${esc(h.product_name)}</span><br>
+                <span class="hb">${esc((h.brands&&[].concat(h.brands).join(", "))||"Unknown brand")}</span></span>
+          <span class="hs" style="color:${scoreColor(typeof h.ecoscore_score==="number"?h.ecoscore_score:null)}">${
+            typeof h.ecoscore_score==="number"?Math.round(h.ecoscore_score):"–"}</span>
+        </button>`).join("")
+        : `<div class="empty">Nothing matched. Try the barcode instead — it is exact.</div>` }
+      <div class="disc"><b>Identified from a picture, not a barcode.</b> These are suggestions matched on
+      text, so check the name and size against what you are holding before trusting the numbers.
+      The barcode remains the only exact identifier.</div>
+    </div>`;
+  $("#resultScroll").querySelectorAll("[data-code]").forEach(b=>b.onclick=()=>lookup(b.dataset.code));
+  go("s-result");
+  $("#resultScroll").scrollTop=0;
 }
 
 /* ---------- offline pack ----------

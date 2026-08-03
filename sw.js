@@ -7,7 +7,7 @@
  *     rarely change, and are exactly what you need when the signal dies.
  */
 
-const CACHE = "ecotrace-v10";
+const CACHE = "ecotrace-v11";
 const SHELL = ["/", "/ecotrace.html", "/pack.json", "/icon-180.png", "/icon-512.png", "/manifest.json"];
 
 self.addEventListener("install", e => {
