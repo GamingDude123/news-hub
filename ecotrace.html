@@ -37,7 +37,10 @@ body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;back
 .scroll::-webkit-scrollbar{display:none}
 
 /* ---------- top bar ---------- */
-.bar{display:flex;align-items:center;gap:10px;padding:16px 18px 10px}
+/* env() keeps the header clear of the clock and Dynamic Island once the app
+   runs full-screen from the home screen. */
+.bar{display:flex;align-items:center;gap:10px;
+  padding:calc(14px + env(safe-area-inset-top)) 18px 10px}
 .logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:-.6px;font-size:1.15rem}
 .logo .mark{width:26px;height:26px;border-radius:9px;background:linear-gradient(140deg,var(--a1),var(--a2));
   display:grid;place-items:center;font-size:.9rem;color:#04140c}
@@ -729,7 +732,7 @@ function camMsg(msg, isErr){
   el.textContent=msg;
   el.classList.toggle("err", !!isErr);
 }
-const APP_VERSION = "v5";
+const APP_VERSION = "v6";
 function engineMsg(){
   const d = engine==="native" ? "native BarcodeDetector" : engine==="wasm" ? "ZXing (WebAssembly)" : "none";
   $("#engine").textContent = APP_VERSION+" · Decoder: "+d+(zx?" · ready":"");
@@ -1126,7 +1129,11 @@ function showNoRecord(code){
       <p>If it is a grocery product, you can add it yourself at <b>openfoodfacts.org</b> — the database is
       built by volunteers, and once it is in there this app will find it.</p>
     </div>
-    <button class="swap" id="noRecDemo">Browse the demo products instead</button>
+    <a class="swap" style="display:block;text-align:center;text-decoration:none"
+       href="https://world.openfoodfacts.org/cgi/product.pl?type=add&code=${encodeURIComponent(code)}"
+       target="_blank" rel="noopener">Add this product to Open Food Facts</a>
+    <button class="swap" id="noRecDemo"
+       style="background:#ffffff12;color:var(--text);margin-top:10px">Browse the demo products instead</button>
     <div class="disc"><b>Prototype.</b> The demo database is invented data about fictional brands.</div>`;
   $("#noRecDemo").onclick = ()=>go("s-scan");
   go("s-result");
