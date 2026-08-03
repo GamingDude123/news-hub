@@ -1478,7 +1478,8 @@ function buildFromPack(code, row){
       {k:"Eco-Score", v: typeof score==="number"?Math.round(score):null,
        note: grade ? (GRADE_TEXT[grade]||"Open Food Facts Eco-Score") : "No Eco-Score published"},
       {k:"Carbon", v: co2!=null ? carbonScore(co2) : null,
-       note: co2!=null ? co2.toFixed(2)+" kg CO₂e per kg (Agribalyse)" : "No life-cycle carbon data"},
+       note: co2!=null ? co2.toFixed(2)+" kg CO₂e per kg (Agribalyse)"
+                       : "Stage-by-stage carbon needs a connection — not in the offline pack"},
       {k:"Labor", v:null, note:"No public labour dataset covers individual products"},
       {k:"Circularity", v:null, note:"Not in the offline pack — connect to load full detail"}
     ],
