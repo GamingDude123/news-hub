@@ -732,7 +732,7 @@ function camMsg(msg, isErr){
   el.textContent=msg;
   el.classList.toggle("err", !!isErr);
 }
-const APP_VERSION = "v6";
+const APP_VERSION = "v7";
 function engineMsg(){
   const d = engine==="native" ? "native BarcodeDetector" : engine==="wasm" ? "ZXing (WebAssembly)" : "none";
   $("#engine").textContent = APP_VERSION+" · Decoder: "+d+(zx?" · ready":"");
@@ -1086,6 +1086,63 @@ function buildFromOFF(code, p){
   };
 }
 
+/* Second-tier lookup, via our own serverless function. Identifies products
+   Open Food Facts has never heard of — electronics, tools, household goods —
+   but carries no environmental data, so the report says so rather than
+   guessing a score. */
+async function fetchFallback(code){
+  try{
+    const r = await fetch("/api/lookup?code="+encodeURIComponent(code));
+    if(!r.ok) return null;
+    const j = await r.json();
+    return j && j.found ? j : null;
+  }catch(e){ return null; }
+}
+
+function buildFromFallback(code, d){
+  const bits=[];
+  if(d.model)  bits.push("Model "+d.model);
+  if(d.weight) bits.push(d.weight);
+  if(d.priceLow) bits.push("Typically "+(d.currency||"")+d.priceLow);
+
+  return {
+    live:true, identifiedOnly:true, code,
+    emoji: pickEmoji([d.category||""]),
+    img: d.image || null,
+    name: d.name || "Unnamed product",
+    brand: d.brand || "Unknown brand",
+    price: "",
+    cat: (d.category||"Uncategorised").split(">").pop().trim(),
+    co2:"—", co2u:"no data", tiers:[0,1],
+    score: null,
+    metrics:[
+      {k:"Eco-Score",  v:null, note:"Not assessed — this product is outside the open environmental databases"},
+      {k:"Carbon",     v:null, note:"No life-cycle study exists for this product"},
+      {k:"Labor",      v:null, note:"No public labour dataset covers individual products"},
+      {k:"Circularity",v:null, note:"No packaging or repairability data"}
+    ],
+    alert:{sev:"med", emoji:"❓", title:"Identified, but not assessed",
+      text:"We found what this product is, via "+(d.source||"a product database")+". No open database holds "+
+           "environmental or labour data for it — that is true of almost all clothing, electronics and household goods."},
+    chain:[{
+      icon:"🏷️", stage:"What we know",
+      loc: d.category ? d.category.replace(/>/g," → ") : "Category unknown",
+      who: d.description ? esc(d.description).slice(0,240) : "<b>"+esc(d.brand||"This brand")+"</b> publishes no supply-chain information",
+      tags: bits.length ? bits.map(b=>({t:b, c:""})) : [{t:"No details published", c:"flag"}]
+    },{
+      icon:"🚫", stage:"What nobody publishes",
+      loc:"Every stage before the shelf",
+      who:"Where its materials came from, who assembled it, and under what conditions",
+      tags:[{t:"Origin unknown", c:"flag"},{t:"Factory unknown", c:"flag"},{t:"Footprint unknown", c:"flag"}]
+    }],
+    labor:[{sev:"med", where:"Unknown", title:"No labour data exists for this product",
+      text:"This product was identified by barcode only. Nothing in any public dataset connects it to a factory, "+
+           "a supplier or a set of working conditions. That absence is the norm, not a red flag against this brand specifically.",
+      src:"Identified via "+(d.source||"a product database")}],
+    alts:[]
+  };
+}
+
 /* A barcode resolves against the curated demo set first, then the live
    database, then honestly reports a miss. */
 async function lookup(code){
@@ -1093,10 +1150,27 @@ async function lookup(code){
   if(DB[code]){ showResult(code); return; }
 
   showLoading(code);
+
   const p = await fetchLive(code);
-  if(!p){ showNoRecord(code); return; }
-  DB[code] = buildFromOFF(code, p);   // runtime only, never saved to disk
-  showResult(code);
+  if(p){
+    DB[code] = buildFromOFF(code, p);        // runtime only, never saved to disk
+    showResult(code);
+    return;
+  }
+
+  setLoadingNote("Not in the food databases — checking product catalogues…");
+  const d = await fetchFallback(code);
+  if(d){
+    DB[code] = buildFromFallback(code, d);
+    showResult(code);
+    return;
+  }
+
+  showNoRecord(code);
+}
+
+function setLoadingNote(msg){
+  const el=$("#loadNote"); if(el) el.textContent=msg;
 }
 
 function showLoading(code){
@@ -1106,7 +1180,7 @@ function showLoading(code){
       <div class="ne">🔎</div>
       <h3>Looking this up…</h3>
       <div class="code">${esc(code)}</div>
-      <p style="text-align:center">Checking Open Food Facts for a real record.</p>
+      <p style="text-align:center" id="loadNote">Checking Open Food Facts for a real record.</p>
     </div>`;
   go("s-result");
   $("#resultScroll").scrollTop=0;
@@ -1307,6 +1381,10 @@ async function fillSlot(slot, code){
     toast("Looking up "+code+"…");
     const p = await fetchLive(code);
     if(p) DB[code] = buildFromOFF(code, p);
+    else {
+      const d = await fetchFallback(code);
+      if(d) DB[code] = buildFromFallback(code, d);
+    }
   }
   if(!DB[code]){ toast("No record found for "+code); go("s-compare"); renderCompare(); return; }
   cmp[slot]=code;
