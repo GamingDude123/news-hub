@@ -3,10 +3,13 @@
 
 # Serve the scanner at the site root, so the address stays short and the
 # camera permission prompt shows a clean domain instead of a long file path.
+# force = true is required: without it Netlify serves the repo's own
+# index.html (the old NewsHub page) before it ever looks at this rule.
 [[redirects]]
   from = "/"
   to = "/ecotrace.html"
   status = 200
+  force = true
 
 [[headers]]
   for = "/*"
