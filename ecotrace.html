@@ -482,6 +482,58 @@ body{background:#030806}
 .alert{margin-top:20px;padding:17px;gap:13px}
 .alert h4{font-size:1rem;letter-spacing:-.3px}
 .alert p{line-height:1.55}
+
+/* ============================================================
+   SCAN SCREEN — the screen opened most often, so it carries the
+   identity: oversized headline, glowing viewfinder, real cards.
+   ============================================================ */
+#s-scan .bar{padding-bottom:2px}
+.scan-title{margin:4px 0 14px}
+.scan-title h1{font-size:2.05rem;font-weight:900;letter-spacing:-1.4px;line-height:1.04}
+.scan-title h1 em{font-style:normal;
+  background:linear-gradient(100deg,#4ef29a,#34e2c4 60%,#2bc9d4);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.scan-title p{margin-top:7px;color:var(--muted);font-size:.9rem;font-weight:600;max-width:30ch;line-height:1.45}
+
+.viewfinder{
+  min-height:200px;
+  border:1px solid rgba(61,220,132,.22);
+  box-shadow:0 0 0 1px rgba(0,0,0,.4), 0 22px 50px -18px rgba(61,220,132,.4),
+             inset 0 1px 0 rgba(255,255,255,.08)}
+.vf-box i{border-width:4px;border-color:#5ff5a8}
+.laser{box-shadow:0 0 26px 4px rgba(61,220,132,.75)}
+
+/* demo products become proper cards with a score badge */
+.hint{margin-top:22px;font-size:.7rem}
+.demo-row{gap:10px;margin-top:11px}
+.demo-chip{position:relative;min-width:150px;padding:14px;border-radius:20px}
+.demo-chip .dc-e{font-size:1.55rem}
+.demo-chip .dc-n{font-size:.86rem;margin-top:7px;line-height:1.25}
+.demo-chip .dc-b{font-size:.73rem;margin-top:3px}
+.demo-chip .dc-s{position:absolute;top:12px;right:12px;font-size:.95rem;font-weight:900;
+  letter-spacing:-.5px;padding:3px 9px;border-radius:9px;background:rgba(255,255,255,.08)}
+
+/* primary action gets real presence */
+.scan-btn{padding:19px;font-size:1.1rem;font-weight:900;
+  background:linear-gradient(100deg,#4ef29a,#34e2c4);
+  box-shadow:0 12px 30px -8px rgba(61,220,132,.65)}
+.engine{margin-top:12px;padding:7px 12px;border-radius:999px;display:inline-block;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);
+  position:relative;left:50%;transform:translateX(-50%)}
+
+/* The scan screen was a fixed flex column with no overflow, so on shorter
+   phones the bottom of it — including the version label — was simply
+   unreachable. It scrolls now, and the viewfinder takes a bounded height
+   instead of eating whatever space is left. */
+.scan-wrap{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:none;padding:0 20px 130px}
+.scan-wrap::-webkit-scrollbar{display:none}
+.viewfinder{flex:0 0 auto;height:min(44vh,330px);min-height:190px}
+
+/* version badge in the header, so it is visible without scrolling at all */
+.vbadge{font-size:.62rem;font-weight:800;letter-spacing:1px;color:var(--dim);
+  background:rgba(255,255,255,.06);border:1px solid var(--line);
+  padding:3px 7px;border-radius:7px;margin-left:8px}
 </style>
 </head>
 <body>
@@ -491,9 +543,14 @@ body{background:#030806}
   <section class="screen on" id="s-scan">
     <div class="bar">
       <div class="logo"><span class="mark">◉</span><span>Eco<span class="grad">Trace</span></span></div>
+      <span class="vbadge" id="vbadge"></span>
       <div class="pts" id="ptsScan">0 pts</div>
     </div>
     <div class="scan-wrap">
+      <div class="scan-title">
+        <h1>What's really <em>behind</em> this product?</h1>
+        <p>Point the camera at any barcode to see its footprint.</p>
+      </div>
       <div class="viewfinder" id="viewfinder">
         <video id="cam" playsinline muted></video>
         <div class="vf-shelf"></div>
@@ -929,7 +986,7 @@ function camMsg(msg, isErr){
   el.textContent=msg;
   el.classList.toggle("err", !!isErr);
 }
-const APP_VERSION = "v9";
+const APP_VERSION = "v10";
 function engineMsg(){
   const d = engine==="native" ? "native BarcodeDetector" : engine==="wasm" ? "ZXing (WebAssembly)" : "none";
   $("#engine").textContent = APP_VERSION+" · Decoder: "+d+(zx?" · ready":"");
@@ -1151,6 +1208,7 @@ $("#demoRow").innerHTML = DEMO_CODES.map(c=>{
   const p=DB[c];
   return `<button class="demo-chip" data-code="${c}">
     <div class="dc-e">${p.emoji}</div>
+    <div class="dc-s" style="color:${scoreColor(p.score)}">${p.score}</div>
     <div class="dc-n">${esc(p.name)}</div>
     <div class="dc-b">${esc(p.brand)}</div>
   </button>`;
@@ -1837,6 +1895,7 @@ $("#clearBtn").onclick = ()=>{
 };
 
 paintPts();
+$("#vbadge").textContent = APP_VERSION;
 
 // Warm the offline pack so the first scan is instant, and register the worker
 // that makes the app usable with no signal. Both are best-effort.
