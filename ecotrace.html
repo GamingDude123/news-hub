@@ -531,6 +531,9 @@ body{background:#030806}
 .viewfinder{flex:0 0 auto;height:min(44vh,330px);min-height:190px}
 
 /* version badge in the header, so it is visible without scrolling at all */
+.mark svg{width:17px;height:17px}
+.iconbtn svg{width:18px;height:18px}
+.nav button .ni svg{width:22px;height:22px;display:block}
 .vbadge{font-size:.62rem;font-weight:800;letter-spacing:1px;color:var(--dim);
   background:rgba(255,255,255,.06);border:1px solid var(--line);
   padding:3px 7px;border-radius:7px;margin-left:8px}
@@ -542,7 +545,7 @@ body{background:#030806}
   <!-- ============ SCAN ============ -->
   <section class="screen on" id="s-scan">
     <div class="bar">
-      <div class="logo"><span class="mark">◉</span><span>Eco<span class="grad">Trace</span></span></div>
+      <div class="logo"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M4 12h16"/></svg></span><span>Eco<span class="grad">Trace</span></span></div>
       <span class="vbadge" id="vbadge"></span>
       <div class="pts" id="ptsScan">0 pts</div>
     </div>
@@ -585,7 +588,7 @@ body{background:#030806}
     <div class="bar">
       <button class="iconbtn" id="backBtn">←</button>
       <div class="logo" style="font-size:1rem">Impact report</div>
-      <button class="iconbtn" id="toCompare" title="Compare this product" style="margin-left:auto">⇄</button>
+      <button class="iconbtn" id="toCompare" title="Compare this product" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h14l-3-3M21 16H7l3 3"/></svg></button>
       <div class="pts" id="ptsResult">0 pts</div>
     </div>
     <div class="scroll" id="resultScroll"></div>
@@ -594,8 +597,8 @@ body{background:#030806}
   <!-- ============ HISTORY ============ -->
   <section class="screen" id="s-history">
     <div class="bar">
-      <div class="logo"><span class="mark">◉</span><span>Your impact</span></div>
-      <button class="iconbtn" id="clearBtn" title="Clear history">⌫</button>
+      <div class="logo"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M4 12h16"/></svg></span><span>Your impact</span></div>
+      <button class="iconbtn" id="clearBtn" title="Clear history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
     </div>
     <div class="scroll" id="historyScroll"></div>
   </section>
@@ -603,16 +606,25 @@ body{background:#030806}
   <!-- ============ COMPARE ============ -->
   <section class="screen" id="s-compare">
     <div class="bar">
-      <div class="logo"><span class="mark">⇄</span><span>Head to head</span></div>
-      <button class="iconbtn" id="cmpReset" title="Clear both slots">⌫</button>
+      <div class="logo"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h14l-3-3M21 16H7l3 3"/></svg></span><span>Head to head</span></div>
+      <button class="iconbtn" id="cmpReset" title="Clear both slots"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
     </div>
     <div class="scroll" id="compareScroll"></div>
   </section>
 
+  <!-- inline SVG, not Unicode symbols: iOS has no font for glyphs like ◎ ⇄ ◈
+       and renders them as question marks -->
   <nav class="nav">
-    <button data-go="s-scan" class="on"><span class="ni">◎</span>Scan</button>
-    <button data-go="s-compare"><span class="ni">⇄</span>Compare</button>
-    <button data-go="s-history"><span class="ni">◈</span>Impact</button>
+    <button data-go="s-scan" class="on"><span class="ni"><svg viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+      <path d="M3 12h18"/></svg></span>Scan</button>
+    <button data-go="s-compare"><span class="ni"><svg viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 8h14l-3-3M21 16H7l3 3"/></svg></span>Compare</button>
+    <button data-go="s-history"><span class="ni"><svg viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span>Impact</button>
   </nav>
 
   <!-- picker sheet -->
@@ -621,7 +633,7 @@ body{background:#030806}
     <div class="panel">
       <h3 id="sheetTitle">Pick a product</h3>
       <div class="sub" id="sheetSub">Scan a real barcode, or choose from the demo database.</div>
-      <button class="cam-opt" id="sheetCam">◎ Scan with camera</button>
+      <button class="cam-opt" id="sheetCam">Scan with camera</button>
       <div id="sheetList"></div>
     </div>
   </div>
@@ -1864,7 +1876,7 @@ $("#sheetScrim").onclick = closeSheet;
 function slotHTML(i){
   const c=cmp[i], p=c&&DB[c];
   if(!p) return `<button class="slot" data-slot="${i}">
-      <span class="ph">＋</span><span class="pht">Add product ${i===0?"A":"B"}</span></button>`;
+      <span class="ph">+</span><span class="pht">Add product ${i===0?"A":"B"}</span></button>`;
   const win = cmp[0]&&cmp[1] && p.score===Math.max(DB[cmp[0]].score,DB[cmp[1]].score) && DB[cmp[0]].score!==DB[cmp[1]].score;
   return `<button class="slot filled ${win?"winner":""}" data-slot="${i}">
       <span class="se">${p.emoji}</span>
