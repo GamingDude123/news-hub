@@ -207,7 +207,7 @@ body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;back
 
 /* ---------- bottom nav ---------- */
 .nav{position:absolute;bottom:0;left:0;right:0;z-index:20;display:flex;padding:8px 14px calc(14px + env(safe-area-inset-bottom));
-  gap:6px;background:linear-gradient(#0000,#050d0aee 38%);backdrop-filter:blur(12px)}
+  gap:6px;background:linear-gradient(#0000,#050d0aee 38%);backdrop-filter:blur(10px)}
 .nav button{flex:1;border:0;background:transparent;color:var(--dim);font-family:inherit;font-weight:800;font-size:.7rem;
   padding:8px 0 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;letter-spacing:.3px}
 .nav button .ni{font-size:1.2rem;line-height:1}
@@ -261,7 +261,7 @@ body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;back
 /* ---------- picker sheet ---------- */
 .sheet{position:absolute;inset:0;z-index:50;display:none}
 .sheet.on{display:block}
-.sheet .scrim{position:absolute;inset:0;background:#000a;backdrop-filter:blur(3px)}
+.sheet .scrim{position:absolute;inset:0;background:#000c}
 .sheet .panel{position:absolute;left:0;right:0;bottom:0;max-height:78%;background:#0b1712;border:1px solid var(--line);
   border-radius:26px 26px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));overflow-y:auto;
   animation:up .28s cubic-bezier(.3,1,.4,1)}
@@ -352,7 +352,7 @@ body{background:#030806}
 .mbar-top span:last-child{font-variant-numeric:tabular-nums;font-size:.9rem;color:var(--text)}
 .track{height:9px;border-radius:9px;background:rgba(255,255,255,.075);
   box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
-.track i{box-shadow:0 0 12px -1px currentColor}
+.track i{}
 .mbar-note{font-size:.78rem;color:var(--dim);margin-top:6px}
 
 /* tabs */
@@ -396,12 +396,14 @@ body{background:#030806}
   box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 14px 40px rgba(0,0,0,.4)}
 .viewfinder::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:28px;
   box-shadow:inset 0 0 70px rgba(0,0,0,.5)}
+#laser{animation-play-state:paused}
+.viewfinder.live #laser{animation-play-state:running}
 .vf-status{font-size:.84rem}
 .engine{color:var(--dim);font-size:.68rem}
 
 /* bottom nav */
 .nav{padding:10px 16px calc(15px + env(safe-area-inset-bottom));
-  background:linear-gradient(transparent,rgba(6,15,12,.92) 42%);backdrop-filter:blur(16px) saturate(1.3)}
+  background:linear-gradient(transparent,rgba(6,15,12,.92) 42%);backdrop-filter:blur(10px)}
 .nav button{gap:5px;font-size:.68rem;letter-spacing:.4px;border-radius:14px;padding:7px 0 5px;transition:.18s}
 .nav button .ni{font-size:1.22rem}
 .nav button.on{background:rgba(61,220,132,.1)}
@@ -441,7 +443,7 @@ body{background:#030806}
   border-bottom:1px solid var(--line);
   box-shadow:none}
 .ring-wrap::after{display:none}
-.ring{width:122px;height:122px;filter:drop-shadow(0 6px 22px color-mix(in srgb,var(--glow) 45%,transparent))}
+.ring{width:122px;height:122px}
 .ring svg{width:122px;height:122px}
 .ring .num{font-size:3rem;letter-spacing:-3px;font-variant-numeric:tabular-nums}
 .verdict{font-size:1.3rem;letter-spacing:-.7px}
@@ -461,7 +463,7 @@ body{background:#030806}
 /* floating nav */
 .nav{left:14px;right:14px;bottom:calc(12px + env(safe-area-inset-bottom));
   padding:7px;border-radius:24px;background:rgba(10,22,17,.82);
-  border:1px solid var(--line);backdrop-filter:blur(22px) saturate(1.4);
+  border:1px solid var(--line);backdrop-filter:blur(10px);
   box-shadow:0 12px 34px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07)}
 .nav button{border-radius:18px;padding:9px 0 7px}
 .nav button.on{background:linear-gradient(180deg,rgba(61,220,132,.2),rgba(61,220,132,.08));
@@ -1469,7 +1471,14 @@ function loadPack(){
   if(!packLoading){
     packLoading = fetch("pack.json")
       .then(r=>r.ok?r.json():null)
-      .then(j=>(PACK=j||{}))
+      .then(j=>{
+        PACK = j||{};
+        const n = Object.keys(PACK).length;
+        if(n && $("#engine")) $("#engine").textContent =
+          APP_VERSION+" \u00b7 "+n.toLocaleString()+" offline \u00b7 "+
+          (engine==="native" ? "native decoder" : "ZXing decoder");
+        return PACK;
+      })
       .catch(()=>(PACK={}));
   }
   return packLoading;
@@ -2024,20 +2033,11 @@ if(location.protocol==="https:"){
     window.addEventListener("load", ()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
   }
 }
-// The pack is several MB now, so fetch it well after first paint and only when
-// the connection isn't metered or crawling.
-(function warmPack(){
-  const c = navigator.connection || {};
-  if(c.saveData) return;
-  if(/2g/.test(c.effectiveType||"")) return;
-  const start = ()=>loadPack().then(p=>{
-    const n = p ? Object.keys(p).length : 0;
-    if(n) $("#engine").textContent =
-      APP_VERSION+" · "+n.toLocaleString()+" offline · "+(engine==="native"?"native decoder":"ZXing decoder");
-  });
-  if("requestIdleCallback" in window) requestIdleCallback(start,{timeout:4000});
-  else setTimeout(start,2500);
-})();
+// The pack is ~4 MB. Fetching and JSON.parsing it at startup blocks the main
+// thread long enough to feel like a stutter, so it now loads on first use
+// instead — by which point the user is already waiting on a lookup.
+$("#engine").textContent = APP_VERSION+" \u00b7 offline pack ready \u00b7 "+
+  (("BarcodeDetector" in window) ? "native decoder" : "ZXing decoder");
 
 // show which decoder this browser will use, before the camera is even opened
 engine = ("BarcodeDetector" in window) ? "native" : "wasm";
